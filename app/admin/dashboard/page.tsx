@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Monitor, Brain, TrendingUp,
-  Download, ArrowRight,
+  AlertTriangle, CheckCircle, Download, ArrowRight,
   Activity, Zap,
 } from 'lucide-react'
 
