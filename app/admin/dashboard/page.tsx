@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  RefreshCw, Users, Monitor, Brain, TrendingUp,
-  AlertTriangle, CheckCircle, Download, ArrowRight,
+  Users, Monitor, Brain, TrendingUp,
+  Download, ArrowRight,
   Activity, Zap,
 } from 'lucide-react'
 
@@ -13,14 +13,6 @@ interface AggregateStats {
   riskDistribution: { Low: number; Moderate: number; High: number; Critical: number }
   averageScreenTime: number
   topSymptoms: Array<{ symptom: string; count: number }>
-}
-
-interface MLStatus {
-  modelLoaded: boolean
-  trainingRows?: number
-  newLogsSinceRetrain?: number
-  retrainThreshold?: number
-  error?: string
 }
 
 const RISK_META = {
@@ -72,31 +64,13 @@ function StatCard({ icon, label, value, sub, iconBg }: {
 export default function AdminDashboardPage() {
   const router = useRouter()
   const [stats, setStats] = useState<AggregateStats | null>(null)
-  const [mlStatus, setMlStatus] = useState<MLStatus | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
-  const [mlLoading, setMlLoading] = useState(true)
-  const [retraining, setRetraining] = useState(false)
-  const [retrainMessage, setRetrainMessage] = useState('')
-  const [retrainError, setRetrainError] = useState('')
   const [downloading, setDownloading] = useState(false)
   const [exportError, setExportError] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/stats').then(r => r.json()).then(setStats).catch(() => setStats(null)).finally(() => setStatsLoading(false))
-    fetch('/api/admin/ml-status').then(r => r.json()).then(setMlStatus)
-      .catch(() => setMlStatus({ modelLoaded: false, error: 'ML backend unavailable' }))
-      .finally(() => setMlLoading(false))
   }, [])
-
-  const handleRetrain = async () => {
-    setRetraining(true); setRetrainMessage(''); setRetrainError('')
-    try {
-      const res = await fetch('/api/admin/ml-retrain', { method: 'POST' })
-      if (res.ok) setRetrainMessage('Retrain started. Check server logs for progress.')
-      else { const b = await res.json(); setRetrainError(b.error ?? 'Retrain failed.') }
-    } catch { setRetrainError('ML backend unavailable') }
-    finally { setRetraining(false) }
-  }
 
   const handleExport = async () => {
     setDownloading(true); setExportError('')
@@ -214,73 +188,6 @@ export default function AdminDashboardPage() {
           </Card>
         </div>
       )}
-
-      {/* ML Model status */}
-      <Card>
-        <SectionHeading icon={<Brain className="w-3.5 h-3.5" />} label="ML Model Status" />
-
-        {mlLoading ? (
-          <div className="space-y-3 animate-pulse">
-            <div className="h-4 bg-[#f97316]/10 rounded w-1/3" />
-            <div className="h-4 bg-[#f97316]/10 rounded w-1/4" />
-          </div>
-        ) : mlStatus?.error ? (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
-            <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
-            <p className="text-sm text-destructive">{mlStatus.error}</p>
-          </div>
-        ) : mlStatus ? (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                {
-                  label: 'Model Status',
-                  value: mlStatus.modelLoaded ? 'Active' : 'Inactive',
-                  valueClass: mlStatus.modelLoaded ? 'text-green-400' : 'text-red-400',
-                  icon: mlStatus.modelLoaded ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />,
-                },
-                { label: 'Training Rows',  value: mlStatus.trainingRows ?? '—',         valueClass: 'text-foreground', icon: null },
-                { label: 'New Logs',       value: mlStatus.newLogsSinceRetrain ?? '—',  valueClass: 'text-foreground', icon: null },
-                { label: 'Retrain At',     value: mlStatus.retrainThreshold ? `${mlStatus.retrainThreshold} logs` : '—', valueClass: 'text-foreground', icon: null },
-              ].map(({ label, value, valueClass, icon }) => (
-                <div key={label} className="bg-[#f97316]/5 rounded-xl p-4 border border-[#f97316]/8">
-                  <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                  <div className={`flex items-center gap-1.5 text-lg font-bold ${valueClass}`}>
-                    {icon}{value}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {typeof mlStatus.newLogsSinceRetrain === 'number' && typeof mlStatus.retrainThreshold === 'number' && (
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                  <span>Progress to next retrain</span>
-                  <span>{mlStatus.newLogsSinceRetrain} / {mlStatus.retrainThreshold}</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#f97316]/8 overflow-hidden">
-                  <div className="h-full bg-[#f97316] rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (mlStatus.newLogsSinceRetrain / mlStatus.retrainThreshold) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-4 flex-wrap">
-              <button
-                onClick={handleRetrain}
-                disabled={retraining}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#f97316] text-[#0f0a07] rounded-xl text-sm font-semibold hover:bg-[#fb923c] disabled:opacity-50 transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${retraining ? 'animate-spin' : ''}`} />
-                {retraining ? 'Retraining…' : 'Retrain Model'}
-              </button>
-              {retrainMessage && <p className="text-sm text-green-400">{retrainMessage}</p>}
-              {retrainError   && <p className="text-sm text-destructive">{retrainError}</p>}
-            </div>
-          </div>
-        ) : null}
-      </Card>
 
       {/* Quick actions */}
       <div>
