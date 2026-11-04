@@ -17,8 +17,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
+     * - api routes
+     * - public auth/landing pages (login, signup, welcome, auth/*, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|login|signup|welcome|auth|forgot-password|reset-password|privacy|terms|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
