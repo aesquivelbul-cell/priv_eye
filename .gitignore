@@ -29,3 +29,5 @@ node_modules
 venv/
 .venv/
 backend/venv/
+.vercel
+.env*
