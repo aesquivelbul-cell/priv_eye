@@ -67,7 +67,13 @@ export async function POST(request: NextRequest) {
       }
       // Generate a temporary password and update the user
       try {
-        const tempPassword = Math.random().toString(36).slice(-12).toUpperCase() + Math.random().toString(36).slice(-4);
+        // Generate a cryptographically secure temporary password
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$'
+        const bytes = new Uint8Array(16)
+        crypto.getRandomValues(bytes)
+        const tempPassword = Array.from(bytes)
+          .map(b => chars[b % chars.length])
+          .join('')
 
         // Update user password
         const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {

@@ -13,23 +13,20 @@ export type AuditEventPayload = {
 export async function recordAdminAuditEvent(event: AuditEventPayload) {
   const adminClient = createAdminClient()
 
-  const insertData = {
-    user_id: event.targetUserId || null,
-    action: event.eventType,
-    resource_type: 'admin',
-    resource_id: null,
-    changes: {
-      description: event.description,
-      target_email: event.targetEmail ?? null,
-      actor_id: event.actorId ?? null,
-      actor_email: event.actorEmail ?? null,
-      data: event.eventData ?? {},
-    },
-  }
+  // Write to admin_audit_logs with proper dedicated columns
+  const { error } = await adminClient.from('admin_audit_logs').insert([{
+    target_user_id: event.targetUserId ?? null,
+    target_email:   event.targetEmail  ?? null,
+    event_type:     event.eventType,
+    description:    event.description,
+    event_data:     event.eventData ?? {},
+    actor_id:       event.actorId   ?? null,
+    actor_email:    event.actorEmail ?? null,
+  }])
 
-  const { error } = await adminClient.from('audit_logs').insert([insertData])
   if (error) {
-    throw error
+    // Graceful fallback: log to console but don't crash callers
+    console.error('[audit] Failed to record audit event:', error.message, event)
   }
 }
 
@@ -53,25 +50,28 @@ export async function fetchAdminAuditEvents(options?: {
   limit?: number
 }): Promise<AuditEvent[]> {
   const adminClient = createAdminClient()
+
   let query = adminClient
-    .from('audit_logs')
-    .select('id, user_id, action, resource_type, changes, created_at')
+    .from('admin_audit_logs')
+    .select('id, target_user_id, target_email, event_type, description, event_data, actor_id, actor_email, created_at')
     .order('created_at', { ascending: false })
 
   if (options?.userId) {
-    query = query.eq('user_id', options.userId)
+    query = query.eq('target_user_id', options.userId)
   }
 
   if (options?.userEmail) {
-    query = query.contains('changes', { target_email: options.userEmail })
+    query = query.eq('target_email', options.userEmail)
   }
 
   if (options?.eventType) {
-    query = query.eq('action', options.eventType)
+    query = query.eq('event_type', options.eventType)
   }
 
   if (options?.search) {
-    query = query.or(`changes->>description.ilike.%${options.search}%,changes->>target_email.ilike.%${options.search}%,changes->>actor_email.ilike.%${options.search}%`)
+    query = query.or(
+      `description.ilike.%${options.search}%,target_email.ilike.%${options.search}%,actor_email.ilike.%${options.search}%`
+    )
   }
 
   if (options?.limit) {
@@ -84,14 +84,14 @@ export async function fetchAdminAuditEvents(options?: {
   }
 
   return (data ?? []).map((row: any) => ({
-    id: row.id,
-    target_user_id: row.user_id ?? null,
-    target_email: row.changes?.target_email ?? row.changes?.targetEmail ?? null,
-    event_type: row.action ?? row.resource_type ?? 'admin_audit',
-    description: row.changes?.description ?? row.action ?? '',
-    event_data: row.changes?.data ?? null,
-    actor_id: row.changes?.actor_id ?? null,
-    actor_email: row.changes?.actor_email ?? null,
-    created_at: row.created_at,
+    id:              row.id,
+    target_user_id:  row.target_user_id  ?? null,
+    target_email:    row.target_email    ?? null,
+    event_type:      row.event_type      ?? 'admin_action',
+    description:     row.description     ?? '',
+    event_data:      row.event_data      ?? null,
+    actor_id:        row.actor_id        ?? null,
+    actor_email:     row.actor_email     ?? null,
+    created_at:      row.created_at,
   }))
 }

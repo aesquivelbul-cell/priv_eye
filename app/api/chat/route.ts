@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 // Gemini models to try in order (newest first)
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
-const GEMINI_BASE   = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'];
+const GEMINI_BASE   = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase.from('daily_logs')
-        .select('date, academic_screen_time, non_academic_screen_time, screen_time, primary_device, breaks_taken, brightness, sleep_hours, eye_strain, eye_strain_frequency, headaches, headaches_frequency, blurry_vision, blurry_vision_frequency, dry_eyes, dry_eyes_frequency, risk_level, notes')
+        .select('date, academic_screen_time, non_academic_screen_time, screen_time, primary_device, breaks_taken, brightness, sleep_hours, sym_dry_eyes, sym_eye_itchiness, sym_blurred_vision, sym_headaches, sym_eye_irritation, sym_light_sensitivity, sym_difficulty_focusing, sym_neck_shoulder_pain, sym_mental_fatigue, sym_difficulty_concentrating, overall_eye_strain, risk_level, notes')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(90),
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const average = (field: string) => logs.length
       ? (logs.reduce((sum: number, log: any) => sum + number(log[field]), 0) / logs.length).toFixed(1)
       : '0.0';
-    const countPresent = (field: string) => logs.filter((log: any) => number(log[field]) === 1).length;
+    const countPresent = (field: string) => logs.filter((log: any) => log[field] && log[field] !== 'Never').length;
     const logLines = logs.slice(0, 30).map((log: any) => [
       log.date,
       `screen=${log.screen_time ?? 'n/a'}h`,
@@ -78,10 +78,11 @@ export async function POST(request: NextRequest) {
       `brightness=${log.brightness ?? 'n/a'}%`,
       `breaks=${log.breaks_taken ?? 'n/a'}`,
       `symptoms=${[
-        log.eye_strain && 'eye strain',
-        log.headaches && 'headache',
-        log.blurry_vision && 'blurry vision',
-        log.dry_eyes && 'dry eyes',
+        log.sym_eye_irritation  && log.sym_eye_irritation  !== 'Never' && `eye irritation(${log.sym_eye_irritation})`,
+        log.sym_headaches       && log.sym_headaches        !== 'Never' && `headaches(${log.sym_headaches})`,
+        log.sym_blurred_vision  && log.sym_blurred_vision   !== 'Never' && `blurry vision(${log.sym_blurred_vision})`,
+        log.sym_dry_eyes        && log.sym_dry_eyes         !== 'Never' && `dry eyes(${log.sym_dry_eyes})`,
+        log.sym_mental_fatigue  && log.sym_mental_fatigue   !== 'Never' && `mental fatigue(${log.sym_mental_fatigue})`,
       ].filter(Boolean).join(', ') || 'none'}`,
       `risk=${log.risk_level ?? 'n/a'}`,
       log.notes?.trim() ? `notes=${log.notes.trim()}` : null,
@@ -117,10 +118,11 @@ ${settings ? JSON.stringify(settings) : '- No settings record'}
 HEALTH SUMMARY (${logs.length} logs loaded, newest 30 shown below):
 - Average screen time: ${average('screen_time')} hours/day
 - Average sleep: ${average('sleep_hours')} hours/night
-- Eye strain: ${countPresent('eye_strain')}/${logs.length} days
-- Headaches: ${countPresent('headaches')}/${logs.length} days
-- Blurry vision: ${countPresent('blurry_vision')}/${logs.length} days
-- Dry eyes: ${countPresent('dry_eyes')}/${logs.length} days
+- Eye irritation reported: ${countPresent('sym_eye_irritation')}/${logs.length} days
+- Headaches reported: ${countPresent('sym_headaches')}/${logs.length} days
+- Blurry vision reported: ${countPresent('sym_blurred_vision')}/${logs.length} days
+- Dry eyes reported: ${countPresent('sym_dry_eyes')}/${logs.length} days
+- Mental fatigue reported: ${countPresent('sym_mental_fatigue')}/${logs.length} days
 - High/Critical risk days: ${logs.filter((log: any) => log.risk_level === 'High' || log.risk_level === 'Critical').length}/${logs.length}
 - Latest prediction: ${latestPrediction ? `${latestPrediction.risk_percentage ?? 'n/a'}% risk, ${latestPrediction.fatigue_score ?? 'n/a'}/10 fatigue` : 'none'}
 
@@ -185,6 +187,11 @@ Rules you must follow:
       // 404 = model not found for this key/region — try next
       if (res.status === 404) {
         console.warn(`Gemini model ${model} not found, trying next…`);
+        continue;
+      }
+      // 503 = model overloaded — try next
+      if (res.status === 503) {
+        console.warn(`Gemini model ${model} overloaded, trying next…`);
         continue;
       }
 

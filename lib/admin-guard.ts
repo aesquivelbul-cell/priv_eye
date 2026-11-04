@@ -20,7 +20,10 @@ export function isAdmin(user: User | null): boolean {
     return true
   }
 
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+  // Use server-only env var (no NEXT_PUBLIC_ prefix) to avoid leaking
+  // the admin email in the client bundle. Falls back to NEXT_PUBLIC_ADMIN_EMAIL
+  // for backwards compatibility but the server-only var takes precedence.
+  const adminEmail = process.env.ADMIN_EMAIL ?? process.env.NEXT_PUBLIC_ADMIN_EMAIL
   if (adminEmail && user.email === adminEmail) {
     return true
   }

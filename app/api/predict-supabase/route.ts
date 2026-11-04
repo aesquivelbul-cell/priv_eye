@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
         digital_fatigue_frequency: formData.digitalFatigueFrequency,
         primary_symptom_history:   formData.primarySymptomHistory,
         eye_strain:            eyeStrainFreq    > 0 ? 1 : 0,
-        eye_strain_frequency:  formData.sym_blurredVision ?? '',
+        eye_strain_frequency:  formData.sym_eyeIrritation ?? '',
         headaches:             headachesFreq    > 0 ? 1 : 0,
         headaches_frequency:   formData.sym_headaches ?? '',
         blurry_vision:         blurryVisionFreq > 0 ? 1 : 0,

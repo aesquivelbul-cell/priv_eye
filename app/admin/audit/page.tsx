@@ -16,9 +16,15 @@ interface AuditEvent {
 
 const EVENT_TYPES = [
   'All',
+  'profile_update',
   'password_reset_request',
   'temporary_password_generated',
-  'profile_update',
+  'log_hidden',
+  'log_unhidden',
+  'log_deleted',
+  'user_deleted',
+  'survey_import',
+  'admin_user_update',
 ]
 
 export default function AdminAuditPage() {

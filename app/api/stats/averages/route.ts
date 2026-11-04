@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -19,6 +20,14 @@ const BRIGHTNESS_MAP: Record<string, number> = {
 
 export async function GET() {
   try {
+    // Require an authenticated session — this endpoint uses the admin client
+    // so we need at least a valid user to prevent public data exposure.
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ avgScreenTime: 0, avgSleepHours: 0, avgBrightness: 0, totalRespondents: 0 })
+    }
+
     const adminClient = createAdminClient()
 
     // Fetch both sources in parallel

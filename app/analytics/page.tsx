@@ -73,9 +73,14 @@ export default function AnalyticsPage() {
     loadData();
   }, [router, supabase]);
 
-  // Apply time range filter
+  // Apply time range filter — compare by actual date, not array position
   const days = TIME_RANGE_DAYS[timeRange] ?? 7;
-  const filteredLogs = useMemo(() => allLogs.slice(-days), [allLogs, days]);
+  const filteredLogs = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    return allLogs.filter((l: any) => l.date >= cutoffStr);
+  }, [allLogs, days]);
 
   // Build chart points
   const chartPoints = useMemo(() => filteredLogs.flatMap((log: any) => {

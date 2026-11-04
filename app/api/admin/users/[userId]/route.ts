@@ -41,7 +41,44 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 })
   }
 
+  // For survey-only respondents (email-based lookup) who have no daily_logs,
+  // fall back to survey_responses table so the admin can still see their data.
   if (!logs || logs.length === 0) {
+    if (!isUuid) {
+      const email = decodeURIComponent(userId)
+      const { data: surveyRows, error: surveyError } = await adminClient
+        .from('survey_responses')
+        .select([
+          'response_timestamp', 'email', 'eg_age', 'eg_gender', 'eg_year_level', 'eg_field_of_study',
+          'cvsq_q1_visual_raw', 'cvsq_q2_ocular_raw', 'cvsq_q3_extraocular_raw',
+          'cvsq_q4_frequency', 'cvsq_q5_screen_associated', 'cvsq_total', 'cvsq_status',
+          'eg_academic_screen_time', 'eg_non_academic_screen_time', 'eg_primary_device',
+          'eg_continuous_screen_use', 'eg_online_classes_per_day',
+          'eg_follows_20_20_20', 'eg_blue_light_filter', 'eg_screen_brightness',
+          'eg_dark_room_use', 'eg_screen_distance', 'eg_wears_glasses', 'eg_blue_light_glasses',
+          'eg_break_frequency', 'eg_sleep_hours',
+          'sym_dry_eyes', 'sym_eye_itchiness', 'sym_blurred_vision', 'sym_headaches',
+          'sym_eye_irritation', 'sym_light_sensitivity', 'sym_difficulty_focusing',
+          'sym_neck_shoulder_pain', 'sym_mental_fatigue', 'sym_difficulty_concentrating',
+          'eg_overall_eye_strain', 'eg_digital_fatigue_frequency', 'eg_primary_symptom_history',
+        ].join(', '))
+        .eq('email', email)
+        .order('response_timestamp', { ascending: false })
+
+      if (!surveyError && surveyRows && surveyRows.length > 0) {
+        const rows = surveyRows as unknown as Record<string, unknown>[]
+        const latest = rows[0]
+        const profile = {
+          email: (latest.email as string) ?? null,
+          age: (latest.eg_age as number | string) ?? null,
+          gender: (latest.eg_gender as string) ?? null,
+          year_level: (latest.eg_year_level as string) ?? null,
+          field_of_study: (latest.eg_field_of_study as string) ?? null,
+        }
+        return NextResponse.json({ profile, logs: [], surveyResponses: rows })
+      }
+    }
+
     return NextResponse.json({ error: 'No logs found for this user' }, { status: 404 })
   }
 

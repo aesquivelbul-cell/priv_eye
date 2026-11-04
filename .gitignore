@@ -25,3 +25,7 @@ backend/instance/
 node_modules
 .next/
 .DS_Store
+# Virtual environments
+venv/
+.venv/
+backend/venv/

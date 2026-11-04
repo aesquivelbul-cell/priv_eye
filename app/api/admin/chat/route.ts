@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
         const { data: logs } = await adminClient
           .from('daily_logs')
-          .select('date, screen_time, sleep_hours, brightness, age, gender, year_level, field_of_study, eye_strain, headaches, blurry_vision, dry_eyes, risk_level, notes')
+          .select('date, screen_time, sleep_hours, brightness, age, gender, year_level, field_of_study, sym_dry_eyes, sym_eye_itchiness, sym_blurred_vision, sym_headaches, sym_eye_irritation, sym_light_sensitivity, sym_difficulty_focusing, sym_neck_shoulder_pain, sym_mental_fatigue, sym_difficulty_concentrating, overall_eye_strain, risk_level, notes')
           .eq('user_id', targetUserId)
           .order('date', { ascending: false })
           .limit(30);
@@ -84,10 +84,11 @@ export async function POST(request: NextRequest) {
           const highRiskDays    = logs.filter((l: any) => l.risk_level === 'High' || l.risk_level === 'Critical').length;
           const avgScreen       = (logs.reduce((s: number, l: any) => s + (l.screen_time   || 0), 0) / logs.length).toFixed(1);
           const avgSleep        = (logs.reduce((s: number, l: any) => s + (l.sleep_hours   || 0), 0) / logs.length).toFixed(1);
-          const eyeStrainDays   = logs.filter((l: any) => l.eye_strain    === 1).length;
-          const headacheDays    = logs.filter((l: any) => l.headaches     === 1).length;
-          const dryEyesDays     = logs.filter((l: any) => l.dry_eyes      === 1).length;
-          const blurryDays      = logs.filter((l: any) => l.blurry_vision === 1).length;
+          const symCount = (field: string) => logs.filter((l: any) => l[field] && l[field] !== 'Never').length;
+          const eyeStrainDays   = symCount('sym_eye_irritation');
+          const headacheDays    = symCount('sym_headaches');
+          const dryEyesDays     = symCount('sym_dry_eyes');
+          const blurryDays      = symCount('sym_blurred_vision');
 
           const recentNotes = logs
             .map((l: any) => l.notes?.trim())

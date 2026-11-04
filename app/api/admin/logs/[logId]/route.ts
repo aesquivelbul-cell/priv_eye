@@ -40,8 +40,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     .from('daily_logs')
     .update({
       hidden_by_admin: hide,
-      hidden_at: hide ? new Date().toISOString() : null,
-      hidden_by: hide ? user?.id ?? null : null,
     })
     .eq('id', logId)
 

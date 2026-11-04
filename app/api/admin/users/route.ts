@@ -62,6 +62,11 @@ export async function GET(request: NextRequest) {
 
   const { data: surveys } = await surveyQuery
 
+  // Precompute a lowercase Set of emails already in daily_logs — O(1) lookup
+  const dailyLogEmails = new Set<string>(
+    [...userMap.values()].map(u => u.email.toLowerCase()).filter(Boolean)
+  )
+
   // Map overall_eye_strain to a risk level label for display
   const strainToRisk = (s: string|null) => {
     if (s === 'Severe') return 'High'
@@ -72,11 +77,7 @@ export async function GET(request: NextRequest) {
 
   for (const s of surveys ?? []) {
     const key = `survey:${s.email}`
-    // Skip if this email already appeared in daily_logs (avoid duplicate)
-    const alreadyInDailyLogs = [...userMap.values()].some(
-      (u) => u.email && u.email.toLowerCase() === (s.email ?? '').toLowerCase()
-    )
-    if (!alreadyInDailyLogs) {
+    if (!dailyLogEmails.has((s.email ?? '').toLowerCase())) {
       userMap.set(key, {
         userId:        null,
         email:         s.email ?? '',

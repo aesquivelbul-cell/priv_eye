@@ -23,6 +23,49 @@ interface DailyLog {
   hidden_by_admin?: boolean  // only present after migration 001 is applied
 }
 
+interface SurveyResponse {
+  response_timestamp: string | null
+  email: string | null
+  eg_age: number | string | null
+  eg_gender: string | null
+  eg_year_level: string | null
+  eg_field_of_study: string | null
+  cvsq_q1_visual_raw: string | null
+  cvsq_q2_ocular_raw: string | null
+  cvsq_q3_extraocular_raw: string | null
+  cvsq_q4_frequency: string | null
+  cvsq_q5_screen_associated: string | null
+  cvsq_total: number | null
+  cvsq_status: string | null
+  eg_academic_screen_time: string | null
+  eg_non_academic_screen_time: string | null
+  eg_primary_device: string | null
+  eg_continuous_screen_use: string | null
+  eg_online_classes_per_day: string | null
+  eg_follows_20_20_20: string | null
+  eg_blue_light_filter: string | null
+  eg_screen_brightness: string | null
+  eg_dark_room_use: string | null
+  eg_screen_distance: string | null
+  eg_wears_glasses: string | null
+  eg_blue_light_glasses: string | null
+  eg_break_frequency: string | null
+  eg_sleep_hours: number | string | null
+  sym_dry_eyes: string | null
+  sym_eye_itchiness: string | null
+  sym_blurred_vision: string | null
+  sym_headaches: string | null
+  sym_eye_irritation: string | null
+  sym_light_sensitivity: string | null
+  sym_difficulty_focusing: string | null
+  sym_neck_shoulder_pain: string | null
+  sym_mental_fatigue: string | null
+  sym_difficulty_concentrating: string | null
+  eg_overall_eye_strain: string | null
+  eg_digital_fatigue_frequency: string | null
+  eg_primary_symptom_history: string | null
+}
+
 interface UserProfile {
   first_name?: string
   last_name?: string
@@ -36,6 +79,7 @@ interface UserProfile {
 interface UserDetailResponse {
   profile: UserProfile | null
   logs: DailyLog[]
+  surveyResponses?: SurveyResponse[]
 }
 
 interface AuditEventData {
@@ -595,7 +639,11 @@ export default function AdminUserDetailPage() {
             </div>
 
             {visibleLogs.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No logs found for this user.</p>
+              <p className="text-muted-foreground text-sm">
+                {data.surveyResponses && data.surveyResponses.length > 0
+                  ? 'This respondent has no daily logs — their data comes from the survey import below.'
+                  : 'No logs found for this user.'}
+              </p>
             ) : (
               <div className="border border-border rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
@@ -666,6 +714,124 @@ export default function AdminUserDetailPage() {
               Hiding a log removes it from the user&apos;s view but preserves the data for research purposes. Admins can unhide logs at any time.
             </p>
           </section>
+
+          {/* ── Survey Responses ── */}
+          {data.surveyResponses && data.surveyResponses.length > 0 && (
+            <section aria-labelledby="survey-heading" className="border border-border rounded-xl p-6 space-y-4">
+              <div>
+                <h2 id="survey-heading" className="text-lg font-semibold text-foreground">Survey Responses ({data.surveyResponses.length})</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Imported survey data for this respondent.</p>
+              </div>
+
+              {data.surveyResponses.map((sr, idx) => (
+                <div key={idx} className="border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted px-4 py-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      Response {idx + 1}
+                      {sr.response_timestamp && (
+                        <span className="ml-2 text-xs text-muted-foreground font-normal">
+                          {sr.response_timestamp.split('T')[0]}
+                        </span>
+                      )}
+                    </span>
+                    {sr.eg_overall_eye_strain && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        sr.eg_overall_eye_strain === 'Severe'   ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        sr.eg_overall_eye_strain === 'Moderate' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      }`}>
+                        {sr.eg_overall_eye_strain} Eye Strain
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-4 space-y-4 text-sm">
+
+                    {/* ── Screen habits ── */}
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Screen Habits</h3>
+                      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                        {[
+                          { label: 'Academic Screen Time',     value: sr.eg_academic_screen_time },
+                          { label: 'Non-Academic Screen Time', value: sr.eg_non_academic_screen_time },
+                          { label: 'Primary Device',           value: sr.eg_primary_device },
+                          { label: 'Continuous Use',           value: sr.eg_continuous_screen_use },
+                          { label: 'Online Classes/Day',       value: sr.eg_online_classes_per_day },
+                          { label: 'Screen Brightness',        value: sr.eg_screen_brightness },
+                          { label: 'Screen Distance',          value: sr.eg_screen_distance },
+                          { label: 'Dark Room Use',            value: sr.eg_dark_room_use },
+                          { label: 'Break Frequency',          value: sr.eg_break_frequency },
+                          { label: 'Follows 20-20-20',         value: sr.eg_follows_20_20_20 },
+                          { label: 'Blue Light Filter',        value: sr.eg_blue_light_filter },
+                          { label: 'Wears Glasses',            value: sr.eg_wears_glasses },
+                          { label: 'Blue Light Glasses',       value: sr.eg_blue_light_glasses },
+                          { label: 'Sleep Hours',              value: sr.eg_sleep_hours },
+                        ].map(({ label, value }) => value != null && (
+                          <div key={label}>
+                            <dt className="text-xs text-muted-foreground">{label}</dt>
+                            <dd className="font-medium text-foreground">{String(value)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+
+                    {/* ── Symptoms ── */}
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Symptoms</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: 'Dry Eyes',                value: sr.sym_dry_eyes },
+                          { label: 'Eye Itchiness',           value: sr.sym_eye_itchiness },
+                          { label: 'Blurred Vision',          value: sr.sym_blurred_vision },
+                          { label: 'Headaches',               value: sr.sym_headaches },
+                          { label: 'Eye Irritation',          value: sr.sym_eye_irritation },
+                          { label: 'Light Sensitivity',       value: sr.sym_light_sensitivity },
+                          { label: 'Difficulty Focusing',     value: sr.sym_difficulty_focusing },
+                          { label: 'Neck/Shoulder Pain',      value: sr.sym_neck_shoulder_pain },
+                          { label: 'Mental Fatigue',          value: sr.sym_mental_fatigue },
+                          { label: 'Difficulty Concentrating',value: sr.sym_difficulty_concentrating },
+                        ].map(({ label, value }) => value != null && (
+                          <span key={label} className="text-xs px-2 py-1 rounded-full bg-muted border border-border text-foreground">
+                            {label}: <span className="font-medium">{String(value)}</span>
+                          </span>
+                        ))}
+                        {sr.eg_primary_symptom_history && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-muted border border-border text-foreground">
+                            History: <span className="font-medium">{sr.eg_primary_symptom_history}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── CVSQ scores ── */}
+                    {(sr.cvsq_total != null || sr.cvsq_status) && (
+                      <div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">CVSQ Scores</h3>
+                        <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                          {[
+                            { label: 'CVSQ Total',           value: sr.cvsq_total },
+                            { label: 'Status',               value: sr.cvsq_status },
+                            { label: 'Visual',               value: sr.cvsq_q1_visual_raw },
+                            { label: 'Ocular',               value: sr.cvsq_q2_ocular_raw },
+                            { label: 'Extraocular',          value: sr.cvsq_q3_extraocular_raw },
+                            { label: 'Frequency',            value: sr.cvsq_q4_frequency },
+                            { label: 'Screen Associated',    value: sr.cvsq_q5_screen_associated },
+                            { label: 'Digital Fatigue Freq', value: sr.eg_digital_fatigue_frequency },
+                          ].map(({ label, value }) => value != null && (
+                            <div key={label}>
+                              <dt className="text-xs text-muted-foreground">{label}</dt>
+                              <dd className="font-medium text-foreground">{String(value)}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
 
           {/* ── Audit History ── */}
           <section aria-labelledby="audit-heading" className="border border-border rounded-xl p-6">

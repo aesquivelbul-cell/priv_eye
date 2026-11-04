@@ -3,16 +3,15 @@
  * Tries models in order until one responds successfully.
  */
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Most-available first — ordered by availability and cost-efficiency.
 export const GEMINI_MODELS = [
-  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
   'gemini-3.5-flash',
-  'gemini-3.7-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
-  'gemini-2.5-pro',
+  'gemini-flash-latest',
 ];
 
 export interface GeminiMessage {
@@ -75,6 +74,12 @@ export async function callGemini({
         return { error: 'AI key authentication failed. Contact support.', status: 502 };
       if (res.status === 429)
         return { error: 'AI rate limit reached. Please wait a moment and try again.', status: 429 };
+      // 503 = model overloaded — try the next model in the list
+      if (res.status === 503) {
+        console.warn(`[Gemini] model ${model} overloaded, trying next…`);
+        lastError = `HTTP 503: model overloaded`;
+        continue;
+      }
 
       lastError = `HTTP ${res.status}: ${body.slice(0, 200)}`;
       continue;
