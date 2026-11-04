@@ -102,15 +102,38 @@ export default function AnalyticsPage() {
     const avgScreenTime = filteredLogs.reduce((s: number, l: any) => s + (l.screen_time || 0), 0) / n;
     const totalHours = filteredLogs.reduce((s: number, l: any) => s + (l.screen_time || 0), 0);
 
-    const eyeStrainCount    = filteredLogs.filter((l: any) => l.sym_eye_irritation   && l.sym_eye_irritation   !== 'Never').length;
-    const headachesCount    = filteredLogs.filter((l: any) => l.sym_headaches         && l.sym_headaches         !== 'Never').length;
-    const dryEyesCount      = filteredLogs.filter((l: any) => l.sym_dry_eyes          && l.sym_dry_eyes          !== 'Never').length;
-    const blurryVisionCount = filteredLogs.filter((l: any) => l.sym_blurred_vision    && l.sym_blurred_vision    !== 'Never').length;
+    // Most recent log in the filtered window — used for the symptom checklist
+    const latestLog = [...filteredLogs].sort((a: any, b: any) => b.date.localeCompare(a.date))[0] as any;
+
+    // All 10 symptoms mapped from DB column names to display labels
+    const ALL_SYMPTOMS = [
+      { key: 'sym_eye_irritation',           label: 'Eye irritation / burning sensation' },
+      { key: 'sym_dry_eyes',                 label: 'Dry eyes' },
+      { key: 'sym_blurred_vision',           label: 'Blurred vision' },
+      { key: 'sym_headaches',                label: 'Headaches' },
+      { key: 'sym_eye_itchiness',            label: 'Eye itchiness' },
+      { key: 'sym_light_sensitivity',        label: 'Sensitivity to light' },
+      { key: 'sym_difficulty_focusing',      label: 'Difficulty focusing' },
+      { key: 'sym_neck_shoulder_pain',       label: 'Neck / shoulder pain' },
+      { key: 'sym_mental_fatigue',           label: 'Mental fatigue after screen use' },
+      { key: 'sym_difficulty_concentrating', label: 'Difficulty concentrating' },
+    ];
+
+    const symptomList = ALL_SYMPTOMS.map(({ key, label }) => ({
+      label,
+      answer: (latestLog?.[key] as string | null | undefined) || 'Never',
+    }));
+
+    // Keep frequency map for the topSymptom insight card
+    const eyeStrainCount    = filteredLogs.filter((l: any) => l.sym_eye_irritation && l.sym_eye_irritation !== 'Never').length;
+    const headachesCount    = filteredLogs.filter((l: any) => l.sym_headaches       && l.sym_headaches      !== 'Never').length;
+    const dryEyesCount      = filteredLogs.filter((l: any) => l.sym_dry_eyes        && l.sym_dry_eyes       !== 'Never').length;
+    const blurryVisionCount = filteredLogs.filter((l: any) => l.sym_blurred_vision  && l.sym_blurred_vision !== 'Never').length;
 
     const symptomFrequency = {
-      'Eye Strain': Math.round((eyeStrainCount / n) * 100),
-      'Headaches': Math.round((headachesCount / n) * 100),
-      'Dry Eyes': Math.round((dryEyesCount / n) * 100),
+      'Eye Strain':    Math.round((eyeStrainCount    / n) * 100),
+      'Headaches':     Math.round((headachesCount    / n) * 100),
+      'Dry Eyes':      Math.round((dryEyesCount      / n) * 100),
       'Blurry Vision': Math.round((blurryVisionCount / n) * 100),
     };
 
@@ -132,6 +155,8 @@ export default function AnalyticsPage() {
       trendDirection: riskTrend,
       improving: riskTrend === 'Improving',
       symptomFrequency,
+      symptomList,
+      latestLogDate: latestLog?.date ?? null,
       topSymptom: topSymptomEntry,
       firstRisk,
       previousRisk,
@@ -356,27 +381,54 @@ export default function AnalyticsPage() {
         <div className="rounded-2xl border border-border bg-card/60 p-6 space-y-6">
           <div className="border-b border-border pb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#f97316]">Symptom tracking</p>
-            <h2 className="text-xl font-bold text-foreground mt-1">Symptom Frequency Analysis</h2>
+            <h2 className="text-xl font-bold text-foreground mt-1">Your Reported Symptoms</h2>
+            {analytics?.latestLogDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Based on your most recent log — {new Date(analytics.latestLogDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            )}
           </div>
 
-          {/* Frequency bars */}
-          <div className="space-y-4">
-            {analytics && Object.entries(analytics.symptomFrequency).map(([symptom, frequency]) => (
-              <div key={symptom} className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{symptom}</span>
-                  <span className="text-sm font-bold text-primary">{frequency as number}%</span>
+          {/* Symptom checklist */}
+          <div className="space-y-2">
+            {analytics?.symptomList.map(({ label, answer }) => {
+              const present = answer !== 'Never';
+              const badgeColor =
+                answer === 'Always'    ? 'bg-red-500/15 text-red-400 border-red-500/30' :
+                answer === 'Often'     ? 'bg-orange-500/15 text-orange-400 border-orange-500/30' :
+                answer === 'Sometimes' ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' :
+                answer === 'Rarely'    ? 'bg-green-500/15 text-green-400 border-green-500/30' :
+                                         'bg-muted/50 text-muted-foreground border-border';
+              return (
+                <div key={label} className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${present ? 'border-[#f97316]/20 bg-[#f97316]/[0.03]' : 'border-border bg-transparent opacity-50'}`}>
+                  <div className="flex items-center gap-3">
+                    {/* Checkbox indicator */}
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 ${present ? 'border-[#f97316] bg-[#f97316]' : 'border-muted-foreground/30 bg-transparent'}`}>
+                      {present && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className={`text-sm font-medium ${present ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badgeColor}`}>{answer}</span>
                 </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      (frequency as number) >= 60 ? 'bg-red-500' :
-                      (frequency as number) >= 30 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                    style={{ width: `${frequency}%` }}
-                  />
-                </div>
-              </div>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground w-full mb-1">Frequency scale:</p>
+            {[
+              { label: 'Never',     color: 'bg-muted/50 text-muted-foreground border-border' },
+              { label: 'Rarely',    color: 'bg-green-500/15 text-green-400 border-green-500/30' },
+              { label: 'Sometimes', color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' },
+              { label: 'Often',     color: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
+              { label: 'Always',    color: 'bg-red-500/15 text-red-400 border-red-500/30' },
+            ].map(({ label, color }) => (
+              <span key={label} className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${color}`}>{label}</span>
             ))}
           </div>
 
@@ -386,7 +438,7 @@ export default function AnalyticsPage() {
             <p className="text-xs text-muted-foreground mb-4">Common screen-use contributors — not a diagnosis</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                ['Eye Strain',    'Often associated with prolonged near focus, glare, small text, or infrequent blinking.'],
+                ['Eye Strain / Irritation', 'Often associated with prolonged near focus, glare, small text, or infrequent blinking.'],
                 ['Headaches',     'May be linked to visual effort, glare, poor viewing distance, posture, dehydration, or insufficient sleep.'],
                 ['Dry Eyes',      'Commonly associated with reduced blinking during screen use, airflow, low humidity, or contact-lens irritation.'],
                 ['Blurry Vision', 'Can occur with prolonged focusing, uncorrected vision needs, fatigue, or temporary tear-film instability.'],
