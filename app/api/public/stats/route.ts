@@ -15,18 +15,25 @@ export async function GET() {
     const logs    = logsRes.data ?? []
     const surveys = surveyRes.data ?? []
 
-    // Unique respondents from daily_logs
-    const uniqueUsers  = new Set(logs.map((l: any) => l.user_id ?? l.email)).size
+    const isSurveyMigrated = logs.some((l: any) => !l.user_id || l.source === 'survey')
+    const registeredUsers  = new Set(logs.filter((l: any) => l.user_id).map((l: any) => l.user_id))
+    const surveyLogsCount  = logs.filter((l: any) => !l.user_id || l.source === 'survey').length
 
-    // Survey respondents (deduplicated against daily_logs emails)
-    const dailyEmails  = new Set(logs.map((l: any) => l.email).filter(Boolean))
-    let surveyUnique   = 0
-    for (const s of surveys) {
-      if (s.email && !dailyEmails.has(s.email)) surveyUnique++
+    let totalRespondents = 0
+    let totalLogs = 0
+
+    if (isSurveyMigrated) {
+      totalRespondents = registeredUsers.size + surveyLogsCount
+      totalLogs = logs.length
+    } else {
+      const dailyEmails = new Set(logs.map((l: any) => l.email).filter(Boolean))
+      let surveyUnique = 0
+      for (const s of surveys) {
+        if (s.email && !dailyEmails.has(s.email)) surveyUnique++
+      }
+      totalRespondents = registeredUsers.size + surveyUnique
+      totalLogs = logs.length + surveys.length
     }
-
-    const totalRespondents = uniqueUsers + surveyUnique
-    const totalLogs        = logs.length + surveys.length
 
     return NextResponse.json({
       respondents:          totalRespondents,

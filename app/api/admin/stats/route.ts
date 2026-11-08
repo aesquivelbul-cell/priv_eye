@@ -22,7 +22,7 @@ export async function GET() {
   const [logsRes, surveyRes] = await Promise.all([
     adminClient
       .from('daily_logs')
-      .select('user_id, screen_time, risk_level, eye_strain, headaches, blurry_vision, dry_eyes'),
+      .select('user_id, email, screen_time, risk_level, eye_strain, headaches, blurry_vision, dry_eyes, source'),
     adminClient
       .from('survey_responses')
       .select(
@@ -51,38 +51,44 @@ export async function GET() {
     Never: 0, Rarely: 1, Sometimes: 2, Often: 3, Always: 4,
   }
 
-  // ── Count respondents ──────────────────────────────────────────────────────
-  // daily_logs: distinct registered users + anonymous survey rows
-  const distinctUserIds = new Set(logs.filter((l) => l.user_id).map((l) => l.user_id))
-  const anonDailyCount  = logs.filter((l) => !l.user_id).length
-  const dailyRespondents = distinctUserIds.size + anonDailyCount
+  // ── Detect if survey responses were already migrated into daily_logs ──────
+  // If daily_logs has rows with source='survey' or user_id=null, the survey respondents
+  // are already present in daily_logs and must NOT be added a second time.
+  const isSurveyMigrated = logs.some((l) => !l.user_id || l.source === 'survey')
 
-  // survey_responses: each row is one respondent
+  const registeredUserIds = new Set(logs.filter((l) => l.user_id).map((l) => l.user_id))
+  const migratedSurveyLogs = logs.filter((l) => !l.user_id || l.source === 'survey')
+
   const surveyRespondents = surveys.length
+  const dailyRespondents  = registeredUserIds.size
 
-  // Combined total (deduplicated by email where possible)
-  const surveyEmails = new Set(surveys.map((s) => s.email).filter(Boolean))
-  const dailyEmails  = new Set(logs.map((l: any) => l.email).filter(Boolean))
-  // Subtract overlap so we don't double-count if someone answered both
-  let overlap = 0
-  surveyEmails.forEach((e) => { if (dailyEmails.has(e)) overlap++ })
-  const totalRespondents = dailyRespondents + surveyRespondents - overlap
+  // Total deduplicated respondents: registered app users + survey participants
+  const totalRespondents = isSurveyMigrated
+    ? registeredUserIds.size + migratedSurveyLogs.length
+    : (() => {
+        const surveyEmails = new Set(surveys.map((s) => s.email).filter(Boolean))
+        const dailyEmails  = new Set(logs.map((l: any) => l.email).filter(Boolean))
+        let overlap = 0
+        surveyEmails.forEach((e) => { if (dailyEmails.has(e)) overlap++ })
+        return dailyRespondents + surveyRespondents - overlap
+      })()
 
-  // ── Risk distribution — from daily_logs (rule-based scored) ───────────────
+  // ── Risk distribution ─────────────────────────────────────────────────────
   const riskCounts: Record<string, number> = { Low: 0, Moderate: 0, High: 0, Critical: 0 }
   for (const log of logs) {
     const level = log.risk_level as string
     if (level in riskCounts) riskCounts[level]++
   }
 
-  // Supplement with survey_responses using overall eye strain as proxy
-  // (None/Mild → Low, Moderate → Moderate, Severe → High)
-  for (const s of surveys) {
-    const strain = s.eg_overall_eye_strain as string | null
-    if (strain === 'None' || strain === 'Mild') riskCounts.Low++
-    else if (strain === 'Moderate') riskCounts.Moderate++
-    else if (strain === 'Severe') riskCounts.High++
-    else riskCounts.Low++ // unknown → Low
+  // Only supplement from survey_responses if survey rows have NOT yet been migrated to daily_logs
+  if (!isSurveyMigrated) {
+    for (const s of surveys) {
+      const strain = s.eg_overall_eye_strain as string | null
+      if (strain === 'None' || strain === 'Mild') riskCounts.Low++
+      else if (strain === 'Moderate') riskCounts.Moderate++
+      else if (strain === 'Severe') riskCounts.High++
+      else riskCounts.Low++
+    }
   }
 
   const totalForRisk = Object.values(riskCounts).reduce((a, b) => a + b, 0) || 1
@@ -93,9 +99,9 @@ export async function GET() {
     Critical: Math.round((riskCounts.Critical / totalForRisk) * 1000) / 10,
   }
 
-  // ── Average screen time — combined ────────────────────────────────────────
+  // ── Average screen time ───────────────────────────────────────────────────
   const dailyScreenTimes  = logs.map((l) => Number(l.screen_time) || 0)
-  const surveyScreenTimes = surveys.map((s) => {
+  const surveyScreenTimes = isSurveyMigrated ? [] : surveys.map((s) => {
     const a = acadMap[s.eg_academic_screen_time as string] ?? 0
     const n = nonAcadMap[s.eg_non_academic_screen_time as string] ?? 0
     return a + n
@@ -105,8 +111,7 @@ export async function GET() {
     ? Math.round((allScreenTimes.reduce((a, b) => a + b, 0) / allScreenTimes.length) * 10) / 10
     : 0
 
-  // ── Top symptoms — combined ────────────────────────────────────────────────
-  // From daily_logs (old binary flags)
+  // ── Top symptoms ──────────────────────────────────────────────────────────
   const symptomCountsMap: Record<string, number> = {
     eye_strain: 0, headaches: 0, blurry_vision: 0, dry_eyes: 0,
   }
@@ -116,12 +121,14 @@ export async function GET() {
     if (log.blurry_vision === 1) symptomCountsMap.blurry_vision++
     if (log.dry_eyes      === 1) symptomCountsMap.dry_eyes++
   }
-  // From survey_responses symptom grid (Sometimes/Often/Always = present)
-  for (const s of surveys) {
-    if (symScale[s.sym_blurred_vision as string] >= 2) symptomCountsMap.blurry_vision++
-    if (symScale[s.sym_headaches      as string] >= 2) symptomCountsMap.headaches++
-    if (symScale[s.sym_dry_eyes       as string] >= 2) symptomCountsMap.dry_eyes++
-    if (symScale[s.sym_eye_irritation as string] >= 2) symptomCountsMap.eye_strain++
+
+  if (!isSurveyMigrated) {
+    for (const s of surveys) {
+      if (symScale[s.sym_blurred_vision as string] >= 2) symptomCountsMap.blurry_vision++
+      if (symScale[s.sym_headaches      as string] >= 2) symptomCountsMap.headaches++
+      if (symScale[s.sym_dry_eyes       as string] >= 2) symptomCountsMap.dry_eyes++
+      if (symScale[s.sym_eye_irritation as string] >= 2) symptomCountsMap.eye_strain++
+    }
   }
 
   const topSymptoms = Object.entries(symptomCountsMap)
