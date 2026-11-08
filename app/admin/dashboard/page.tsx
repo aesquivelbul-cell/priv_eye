@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Monitor, Brain, TrendingUp,
-  AlertTriangle, CheckCircle, Download, ArrowRight, LayoutDashboard,
+  AlertTriangle, CheckCircle, Download, ArrowRight,
   Activity, Zap,
 } from 'lucide-react'
 
@@ -99,29 +99,14 @@ export default function AdminDashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-0.5">System-wide statistics and model management</p>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                sessionStorage.setItem('view_as_user', 'true');
-                document.cookie = 'view_as_user=true; path=/; max-age=86400; SameSite=Lax';
-              }
-              router.push('/dashboard?view=user');
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#f97316]/10 text-[#f97316] border border-[#f97316]/25 rounded-xl text-sm font-semibold hover:bg-[#f97316]/20 transition-colors"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            User Dashboard
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={downloading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#f97316] text-[#0f0a07] rounded-xl text-sm font-semibold hover:bg-[#fb923c] disabled:opacity-50 transition-colors"
-          >
-            <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
-            {downloading ? 'Exporting…' : 'Export CSV'}
-          </button>
-        </div>
+        <button
+          onClick={handleExport}
+          disabled={downloading}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#f97316] text-[#0f0a07] rounded-xl text-sm font-semibold hover:bg-[#fb923c] disabled:opacity-50 transition-colors"
+        >
+          <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
+          {downloading ? 'Exporting…' : 'Export CSV'}
+        </button>
       </div>
       {exportError && <p className="text-sm text-destructive">{exportError}</p>}
 
