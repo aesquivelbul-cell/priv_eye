@@ -1,3 +1,4 @@
+import { splitNameFromEmail } from '@/lib/name-utils'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/admin-guard'
@@ -68,8 +69,12 @@ export async function GET(
       if (!surveyError && surveyRows && surveyRows.length > 0) {
         const rows = surveyRows as unknown as Record<string, unknown>[]
         const latest = rows[0]
+        const emailVal = (latest.email as string) ?? decodeURIComponent(userId)
+        const defNames = splitNameFromEmail(emailVal)
         const profile = {
-          email: (latest.email as string) ?? null,
+          email: emailVal,
+          first_name: defNames.first_name,
+          last_name: defNames.last_name,
           age: (latest.eg_age as number | string) ?? null,
           gender: (latest.eg_gender as string) ?? null,
           year_level: (latest.eg_year_level as string) ?? null,
@@ -93,23 +98,17 @@ export async function GET(
   }
 
   const latestLog = logs[0]
-  if (!profile) {
-    profile = {
-      email: latestLog.email ?? null,
-      age: latestLog.age ?? null,
-      gender: latestLog.gender ?? null,
-      year_level: latestLog.year_level ?? null,
-      field_of_study: latestLog.field_of_study ?? null,
-    }
-  } else {
-    profile = {
-      ...profile,
-      email: profile.email ?? latestLog.email ?? null,
-      age: profile.age ?? latestLog.age ?? null,
-      gender: profile.gender ?? latestLog.gender ?? null,
-      year_level: profile.year_level ?? latestLog.year_level ?? null,
-      field_of_study: profile.field_of_study ?? latestLog.field_of_study ?? null,
-    }
+  const emailVal = (profile as any)?.email ?? latestLog.email ?? decodeURIComponent(userId)
+  const defNames = splitNameFromEmail(emailVal)
+
+  profile = {
+    first_name: (profile as any)?.first_name || defNames.first_name,
+    last_name:  (profile as any)?.last_name  || defNames.last_name,
+    email: emailVal,
+    age: (profile as any)?.age ?? latestLog.age ?? null,
+    gender: (profile as any)?.gender ?? latestLog.gender ?? null,
+    year_level: (profile as any)?.year_level ?? latestLog.year_level ?? null,
+    field_of_study: (profile as any)?.field_of_study ?? latestLog.field_of_study ?? null,
   }
 
   return NextResponse.json({ profile, logs })
@@ -133,11 +132,36 @@ export async function PATCH(
   }
 
   const { userId } = await params
-  if (!uuidRegex.test(userId)) {
-    return NextResponse.json({ error: 'Profile updates are only supported for registered users' }, { status: 400 })
-  }
-
+  const isUuid = uuidRegex.test(userId)
   const body = await request.json()
+
+  if (!isUuid) {
+    const email = decodeURIComponent(userId)
+    const profileUpdates = body.profile || {}
+    const updates: Record<string, any> = {}
+    if (profileUpdates.age !== undefined) updates.age = profileUpdates.age
+    if (profileUpdates.gender !== undefined) updates.gender = profileUpdates.gender
+    if (profileUpdates.year_level !== undefined) updates.year_level = profileUpdates.year_level
+    if (profileUpdates.field_of_study !== undefined) updates.field_of_study = profileUpdates.field_of_study
+
+    if (Object.keys(updates).length > 0) {
+      await adminClient.from('daily_logs').update(updates).eq('email', email)
+    }
+
+    try {
+      await recordAdminAuditEvent({
+        targetUserId: null,
+        targetEmail: email,
+        eventType: 'profile_update',
+        description: `Admin updated profile for respondent ${email}`,
+        eventData: { updates },
+        actorId: user?.id ?? null,
+        actorEmail: user?.email ?? null,
+      })
+    } catch { /* non-fatal */ }
+
+    return NextResponse.json({ success: true })
+  }
   const profileUpdates = body.profile
   if (!profileUpdates || typeof profileUpdates !== 'object') {
     return NextResponse.json({ error: 'profile data is required' }, { status: 400 })
@@ -252,13 +276,36 @@ export async function DELETE(
   }
 
   const { userId } = await params
+  const isUuid = uuidRegex.test(userId)
 
-  // Only registered users (UUID) can be fully deleted through auth
-  if (!uuidRegex.test(userId)) {
-    return NextResponse.json(
-      { error: 'Account deletion is only supported for registered users' },
-      { status: 400 },
-    )
+  if (!isUuid) {
+    const email = decodeURIComponent(userId)
+    const { data: userLogs } = await adminClient
+      .from('daily_logs')
+      .select('id')
+      .eq('email', email)
+
+    if (userLogs && userLogs.length > 0) {
+      const logIds = userLogs.map(l => l.id)
+      await adminClient.from('predictions').delete().in('log_id', logIds)
+    }
+
+    await adminClient.from('daily_logs').delete().eq('email', email)
+    await adminClient.from('survey_responses').delete().eq('email', email)
+
+    try {
+      await recordAdminAuditEvent({
+        targetUserId: null,
+        targetEmail: email,
+        eventType: 'user_deleted',
+        description: `Admin deleted respondent account for ${email}`,
+        eventData: { email },
+        actorId: user?.id ?? null,
+        actorEmail: user?.email ?? null,
+      })
+    } catch { /* non-fatal */ }
+
+    return NextResponse.json({ success: true })
   }
 
   // Snapshot profile for the audit trail before wiping anything

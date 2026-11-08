@@ -1,3 +1,4 @@
+import { splitNameFromEmail } from '@/lib/name-utils'
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -62,12 +63,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to send reset email' }, { status: 500 });
       }
     } else if (action === 'generate-temp-password') {
-      if (!uuidRegex.test(userId)) {
-        return NextResponse.json({ error: 'Temporary password generation requires a registered user ID' }, { status: 400 });
-      }
-      // Generate a temporary password and update the user
       try {
-        // Generate a cryptographically secure temporary password
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$'
         const bytes = new Uint8Array(16)
         crypto.getRandomValues(bytes)
@@ -75,21 +71,53 @@ export async function POST(request: NextRequest) {
           .map(b => chars[b % chars.length])
           .join('')
 
-        // Update user password
-        const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
+        let targetAuthId = userId
+        let targetEmail: string | null = null
+
+        if (!uuidRegex.test(userId)) {
+          targetEmail = userId
+          const { data: { users } } = await adminClient.auth.admin.listUsers()
+          const existing = users.find(u => u.email?.toLowerCase() === targetEmail!.toLowerCase())
+
+          if (existing) {
+            targetAuthId = existing.id
+          } else {
+            const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+              email: targetEmail,
+              password: tempPassword,
+              email_confirm: true,
+            })
+            if (createError || !newUser?.user) {
+              console.error('Failed to create auth user:', createError)
+              return NextResponse.json({ error: 'Failed to create account for user' }, { status: 500 })
+            }
+            targetAuthId = newUser.user.id
+
+            await adminClient.from('daily_logs').update({ user_id: targetAuthId }).eq('email', targetEmail)
+            const { first_name, last_name } = splitNameFromEmail(targetEmail)
+            await adminClient.from('user_profiles').insert({
+              user_id: targetAuthId,
+              first_name,
+              last_name,
+              baseline_risk_level: 'unknown',
+            })
+          }
+        }
+
+        const { error: updateError } = await adminClient.auth.admin.updateUserById(targetAuthId, {
           password: tempPassword,
-        });
+        })
 
         if (updateError) {
-          console.error('Update password error:', updateError);
-          return NextResponse.json({ error: 'Failed to update password' }, { status: 500 });
+          console.error('Update password error:', updateError)
+          return NextResponse.json({ error: 'Failed to update password' }, { status: 500 })
         }
 
         await recordAdminAuditEvent({
-          targetUserId: userId,
-          targetEmail: null,
+          targetUserId: targetAuthId,
+          targetEmail: targetEmail,
           eventType: 'temporary_password_generated',
-          description: `Admin generated a temporary password for user ${userId}`,
+          description: `Admin generated a temporary password for ${targetEmail ?? targetAuthId}`,
           eventData: { action: 'generate-temp-password' },
           actorId: user?.id ?? null,
           actorEmail: user?.email ?? null,

@@ -1,4 +1,5 @@
 'use client'
+import { formatDisplayName, splitNameFromEmail } from '@/lib/name-utils'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -291,9 +292,10 @@ export default function AdminUserDetailPage() {
         const p = json.profile ?? {}
         const rawYear = p.year_level ?? ''
         const { dropdown, custom } = normalizeYearLevel(rawYear)
+        const defNames = splitNameFromEmail(p.email ?? decodeURIComponent(userId))
         setProfileForm({
-          first_name:        p.first_name    ?? '',
-          last_name:         p.last_name     ?? '',
+          first_name:        p.first_name    || defNames.first_name || '',
+          last_name:         p.last_name     || defNames.last_name  || '',
           age:               p.age != null   ? String(p.age) : '',
           gender:            p.gender        ?? '',
           year_level:        dropdown,
@@ -451,9 +453,11 @@ export default function AdminUserDetailPage() {
     } finally { setResetLoading(false) }
   }
 
-  const displayName = data?.profile
-    ? [data.profile.first_name, data.profile.last_name].filter(Boolean).join(' ')
-    : null
+  const displayName = formatDisplayName(
+    data?.profile?.first_name,
+    data?.profile?.last_name,
+    data?.profile?.email ?? decodeURIComponent(userId ?? '')
+  )
 
   const visibleLogs = data?.logs.filter(l => showHidden || !l.hidden_by_admin) ?? []
   const hiddenCount = data?.logs.filter(l => l.hidden_by_admin).length ?? 0
@@ -475,8 +479,8 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
 
-        {/* Delete user — only for registered users, requires confirmation */}
-        {isRegistered && !loading && data && (
+        {/* Delete user — requires confirmation */}
+        {!loading && data && (
           <button
             onClick={() => setShowDeleteUser(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
@@ -503,18 +507,16 @@ export default function AdminUserDetailPage() {
               <div>
                 <h2 id="profile-heading" className="text-lg font-semibold text-foreground">Profile</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {isRegistered ? 'Edit and update registered user details.' : 'Survey respondent — read-only.'}
+                  Edit and update registered user details.
                 </p>
               </div>
-              {isRegistered && (
-                <button
-                  onClick={() => { setIsEditing(v => !v); setSaveMessage(''); setSaveError('') }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
-                >
-                  {isEditing ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
-                  {isEditing ? 'Cancel' : 'Edit Profile'}
-                </button>
-              )}
+              <button
+                onClick={() => { setIsEditing(v => !v); setSaveMessage(''); setSaveError('') }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                {isEditing ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </button>
             </div>
 
             {/* Read-only display */}
@@ -610,7 +612,7 @@ export default function AdminUserDetailPage() {
             )}
 
             {/* Reset password button */}
-            {isRegistered && !isEditing && (
+            {!isEditing && (
               <div className="pt-2 border-t border-border">
                 <button onClick={() => setShowPasswordModal(true)}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors">
@@ -981,12 +983,12 @@ export default function AdminUserDetailPage() {
                   </div>
                 </button>
 
-                <button onClick={handleGenerateTempPassword} disabled={resetLoading || !isRegistered}
+                <button onClick={handleGenerateTempPassword} disabled={resetLoading}
                   className="w-full flex items-center gap-3 px-4 py-3 border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50 text-left">
                   <ShieldAlert className="w-4 h-4 flex-shrink-0 text-orange-600" />
                   <div>
                     <p className="text-sm font-medium text-foreground">Generate Temporary Password</p>
-                    <p className="text-xs text-muted-foreground">You&apos;ll share a one-time password directly{!isRegistered ? ' (registered users only)' : ''}</p>
+                    <p className="text-xs text-muted-foreground">You&apos;ll share a one-time password directly</p>
                   </div>
                 </button>
 
