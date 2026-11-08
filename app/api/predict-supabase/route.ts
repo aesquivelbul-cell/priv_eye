@@ -12,7 +12,7 @@ function computeCvsqScore(formData: Record<string, unknown>): {
 } {
   const countComplaints = (val: unknown): number => {
     if (Array.isArray(val)) {
-      return val.filter((v) => v && v !== 'None').length;
+      return val.filter((v) => v && v !== 'None' && v !== 'None of the above').length;
     }
     return 0;
   };

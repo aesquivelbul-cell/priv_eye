@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/form-components';
 import { AlertCircle, CheckCircle2, ClipboardList, Activity, Info, X, Pencil, User } from 'lucide-react';
 
@@ -416,30 +416,65 @@ function SelectField({ id, value, onChange, options, placeholder }: {
   );
 }
 
-function CheckboxGroup({ items, selected, onChange }: {
-  items: string[]; selected: string[]; onChange: (v: string[]) => void;
+function CheckboxGroup({ items, selected, onChange, showNoneOption = false }: {
+  items: string[]; selected: string[]; onChange: (v: string[]) => void; showNoneOption?: boolean;
 }) {
+  const isNoneChecked = selected.includes('None') || selected.includes('None of the above');
+
   const toggle = (item: string) => {
-    if (selected.includes(item)) onChange(selected.filter((s) => s !== item));
-    else onChange([...selected, item]);
+    if (selected.includes(item)) {
+      onChange(selected.filter((s) => s !== item));
+    } else {
+      // Remove any 'None' selection when checking a real symptom
+      const cleaned = selected.filter((s) => s !== 'None' && s !== 'None of the above');
+      onChange([...cleaned, item]);
+    }
   };
+
+  const toggleNone = () => {
+    if (isNoneChecked) {
+      onChange([]);
+    } else {
+      onChange(['None']);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      {items.map((item) => {
-        const checked = selected.includes(item);
-        return (
-          <label key={item} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${checked ? 'border-[#f97316]/60 bg-[#f97316]/10 dark:bg-[#f97316]/15' : 'border-border hover:border-[#f97316]/30 hover:bg-[#f97316]/5'}`}>
-            <input type="checkbox" checked={checked} onChange={() => toggle(item)} className="sr-only" />
-            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${checked ? 'bg-[#f97316] border-[#f97316]' : 'border-muted-foreground/40'}`}>
-              {checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" /></svg>}
-            </div>
-            <span className="flex items-center gap-0.5 text-sm text-foreground leading-snug flex-1 min-w-0">
-              <span>{item}</span>
-              <InfoButton term={item} />
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {items.map((item) => {
+          const checked = selected.includes(item);
+          return (
+            <label key={item} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${checked ? 'border-[#f97316]/60 bg-[#f97316]/10 dark:bg-[#f97316]/15' : 'border-border hover:border-[#f97316]/30 hover:bg-[#f97316]/5'}`}>
+              <input type="checkbox" checked={checked} onChange={() => toggle(item)} className="sr-only" />
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${checked ? 'bg-[#f97316] border-[#f97316]' : 'border-muted-foreground/40'}`}>
+                {checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" /></svg>}
+              </div>
+              <span className="flex items-center gap-0.5 text-sm text-foreground leading-snug flex-1 min-w-0">
+                <span>{item}</span>
+                <InfoButton term={item} />
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      {showNoneOption && (
+        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isNoneChecked ? 'border-[#f97316]/60 bg-[#f97316]/10 dark:bg-[#f97316]/15' : 'border-border hover:border-[#f97316]/30 hover:bg-[#f97316]/5'}`}>
+          <input type="checkbox" checked={isNoneChecked} onChange={toggleNone} className="sr-only" />
+          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${isNoneChecked ? 'bg-[#f97316] border-[#f97316]' : 'border-muted-foreground/40'}`}>
+            {isNoneChecked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" /></svg>}
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="text-sm font-medium text-foreground leading-snug">
+              None of the above
             </span>
-          </label>
-        );
-      })}
+            <span className="text-xs text-muted-foreground">
+              I do not experience any of the conditions listed above
+            </span>
+          </div>
+        </label>
+      )}
     </div>
   );
 }
@@ -452,8 +487,21 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [editingProfile, setEditingProfile] = useState(false);
+  const [canSubmit, setCanSubmit] = useState(false);
   const errorRef = useRef<HTMLDivElement | null>(null);
   const topRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (page === TOTAL_PAGES - 1) {
+      setCanSubmit(false);
+      const timer = setTimeout(() => {
+        setCanSubmit(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setCanSubmit(false);
+    }
+  }, [page]);
 
   const [cvsq, setCvsq] = useState<CvsqData>({
     cvsq_visual: [], cvsq_ocular: [], cvsq_extraocular: [],
@@ -569,8 +617,10 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
 
   const handlePrev = () => { setError(''); setPage((p) => p - 1); scrollTop(); };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (page !== TOTAL_PAGES - 1) return;
+    if (!canSubmit) return;
     const err = validate(page);
     if (err) { setError(err); scrollTop(); return; }
     setIsLoading(true); setError('');
@@ -588,7 +638,7 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
   const progressPct = Math.round((page / (TOTAL_PAGES - 1)) * 100);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={(e) => { e.preventDefault(); if (page === TOTAL_PAGES - 1 && canSubmit) handleSubmit(e); }} onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement)?.tagName === 'INPUT') e.preventDefault(); }} className="space-y-6">
       <div ref={topRef} />
 
       {/* Progress bar */}
@@ -623,9 +673,12 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
             <p className="text-base font-semibold text-foreground">Q1. Out of the following visual complaints, how many do you suffer from?</p>
             <p className="text-xs text-muted-foreground mt-1">Select all that apply. It is okay to select none.</p>
           </div>
-          <CheckboxGroup items={VISUAL_COMPLAINTS} selected={cvsq.cvsq_visual} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_visual: v })); setError(''); }} />
+          <CheckboxGroup items={VISUAL_COMPLAINTS} selected={cvsq.cvsq_visual} showNoneOption={true} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_visual: v })); setError(''); }} />
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-            Score: {cvsq.cvsq_visual.length === 0 ? '0 complaints → 0 pts' : cvsq.cvsq_visual.length === 1 ? '1 complaint → 1 pt' : `${cvsq.cvsq_visual.length} complaints → 2 pts`}
+            {(() => {
+              const count = cvsq.cvsq_visual.filter((x) => x && x !== 'None' && x !== 'None of the above').length;
+              return `Score: ${count === 0 ? '0 complaints → 0 pts' : count === 1 ? '1 complaint → 1 pt' : `${count} complaints → 2 pts`}`;
+            })()}
           </div>
         </div>
       )}
@@ -638,9 +691,12 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
             <p className="text-base font-semibold text-foreground">Q2. Out of the following ocular surface complaints, how many do you suffer from?</p>
             <p className="text-xs text-muted-foreground mt-1">Select all that apply. It is okay to select none.</p>
           </div>
-          <CheckboxGroup items={OCULAR_SURFACE_COMPLAINTS} selected={cvsq.cvsq_ocular} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_ocular: v })); setError(''); }} />
+          <CheckboxGroup items={OCULAR_SURFACE_COMPLAINTS} selected={cvsq.cvsq_ocular} showNoneOption={true} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_ocular: v })); setError(''); }} />
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-            Score: {cvsq.cvsq_ocular.length === 0 ? '0 complaints → 0 pts' : cvsq.cvsq_ocular.length === 1 ? '1 complaint → 1 pt' : `${cvsq.cvsq_ocular.length} complaints → 2 pts`}
+            {(() => {
+              const count = cvsq.cvsq_ocular.filter((x) => x && x !== 'None' && x !== 'None of the above').length;
+              return `Score: ${count === 0 ? '0 complaints → 0 pts' : count === 1 ? '1 complaint → 1 pt' : `${count} complaints → 2 pts`}`;
+            })()}
           </div>
         </div>
       )}
@@ -653,9 +709,12 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
             <p className="text-base font-semibold text-foreground">Q3. Out of the following extraocular complaints, how many do you suffer from?</p>
             <p className="text-xs text-muted-foreground mt-1">Select all that apply. It is okay to select none.</p>
           </div>
-          <CheckboxGroup items={EXTRAOCULAR_COMPLAINTS} selected={cvsq.cvsq_extraocular} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_extraocular: v })); setError(''); }} />
+          <CheckboxGroup items={EXTRAOCULAR_COMPLAINTS} selected={cvsq.cvsq_extraocular} showNoneOption={true} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_extraocular: v })); setError(''); }} />
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-            Score: {cvsq.cvsq_extraocular.length === 0 ? '0 complaints → 0 pts' : cvsq.cvsq_extraocular.length === 1 ? '1 complaint → 1 pt' : `${cvsq.cvsq_extraocular.length} complaints → 2 pts`}
+            {(() => {
+              const count = cvsq.cvsq_extraocular.filter((x) => x && x !== 'None' && x !== 'None of the above').length;
+              return `Score: ${count === 0 ? '0 complaints → 0 pts' : count === 1 ? '1 complaint → 1 pt' : `${count} complaints → 2 pts`}`;
+            })()}
           </div>
         </div>
       )}
@@ -680,9 +739,9 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
           </FormField>
           {/* CVSQ preview */}
           {cvsq.cvsq_frequency && cvsq.cvsq_screen_associated && (() => {
-            const q1 = Math.min(cvsq.cvsq_visual.length, 2);
-            const q2 = Math.min(cvsq.cvsq_ocular.length, 2);
-            const q3 = Math.min(cvsq.cvsq_extraocular.length, 2);
+            const q1 = Math.min(cvsq.cvsq_visual.filter((x) => x && x !== 'None' && x !== 'None of the above').length, 2);
+            const q2 = Math.min(cvsq.cvsq_ocular.filter((x) => x && x !== 'None' && x !== 'None of the above').length, 2);
+            const q3 = Math.min(cvsq.cvsq_extraocular.filter((x) => x && x !== 'None' && x !== 'None of the above').length, 2);
             const q4 = ({ Rare: 0, Infrequent: 1, Frequent: 2 } as Record<string,number>)[cvsq.cvsq_frequency] ?? 0;
             const q5 = ({ Never: 0, Sometimes: 1, Always: 2 } as Record<string,number>)[cvsq.cvsq_screen_associated] ?? 0;
             const total = q1 + q2 + q3 + q4 + q5;
@@ -917,8 +976,12 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
             Next
           </button>
         ) : (
-          <button type="submit" disabled={isLoading}
-            className="flex-1 px-6 py-3 bg-[#f97316] text-white text-sm font-semibold rounded-xl hover:bg-[#fb923c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          <button
+            type="button"
+            onClick={() => handleSubmit()}
+            disabled={isLoading || !canSubmit}
+            className="flex-1 px-6 py-3 bg-[#f97316] text-white text-sm font-semibold rounded-xl hover:bg-[#fb923c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
             {isLoading ? 'Submitting…' : 'Submit Survey'}
           </button>
         )}

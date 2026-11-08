@@ -182,8 +182,8 @@ export default function DailyLogPage() {
             sym_neckShoulderPain:       (last?.sym_neck_shoulder_pain        as string) || '',
             sym_mentalFatigue:          (last?.sym_mental_fatigue            as string) || '',
             sym_difficultyConcentrating:(last?.sym_difficulty_concentrating  as string) || '',
-            overallEyeStrain:        (last?.overall_eye_strain        as string) || '',
-            digitalFatigueFrequency: (last?.digital_fatigue_frequency  as string) || '',
+            overallEyeStrain:        '',
+            digitalFatigueFrequency: '',
             primarySymptomHistory:   (last?.primary_symptom_history   as string) || '',
           });
         }
