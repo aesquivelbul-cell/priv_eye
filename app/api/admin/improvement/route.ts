@@ -50,11 +50,15 @@ function improvementStatus(
   screenDelta: number, sleepDelta: number,
   symptomDelta: number, riskDelta: number,
 ): 'Improved' | 'No Change' | 'Worsened' {
+  // A meaningful drop of >= 5% in eye strain risk (e.g. Critical -> Moderate) directly marks an improvement
+  if (riskDelta <= -5) return 'Improved'
+  if (riskDelta >= 5)  return 'Worsened'
+
   let score = 0
   if (screenDelta  < -0.3) score += 1; else if (screenDelta  > 0.5)  score -= 1
   if (sleepDelta   > 0.2)  score += 1; else if (sleepDelta   < -0.3) score -= 1
   if (symptomDelta < -0.1) score += 1; else if (symptomDelta > 0.1)  score -= 1
-  if (riskDelta    < -3)   score += 1; else if (riskDelta    > 3)    score -= 1
+  if (riskDelta    < -2)   score += 1; else if (riskDelta    > 2)    score -= 1
   if (score >= 2) return 'Improved'
   if (score <= -2) return 'Worsened'
   return 'No Change'
