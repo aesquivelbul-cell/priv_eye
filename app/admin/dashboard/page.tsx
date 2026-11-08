@@ -69,7 +69,23 @@ export default function AdminDashboardPage() {
   const [exportError, setExportError] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/stats').then(r => r.json()).then(setStats).catch(() => setStats(null)).finally(() => setStatsLoading(false))
+    fetch('/api/admin/stats')
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to load stats')
+        return r.json()
+      })
+      .then((data) => {
+        if (data && data.riskDistribution) {
+          setStats(data)
+        } else {
+          setStats(null)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load stats:', err)
+        setStats(null)
+      })
+      .finally(() => setStatsLoading(false))
   }, [])
 
   const handleExport = async () => {

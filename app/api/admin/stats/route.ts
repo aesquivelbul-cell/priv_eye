@@ -4,7 +4,8 @@ import { isAdmin } from '@/lib/admin-guard'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  // Auth check
+  try {
+    // Auth check
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!isAdmin(user)) {
@@ -166,7 +167,11 @@ export async function GET() {
     topSymptoms,
     cvsqDistribution,
     avgCvsqScore,
-    registeredUserCount: distinctUserIds.size,
+    registeredUserCount: registeredUserIds.size,
     surveyRespondentCount: surveyRespondents,
   })
+  } catch (err) {
+    console.error('Error in /api/admin/stats:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
