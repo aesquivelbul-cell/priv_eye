@@ -48,14 +48,14 @@ function StatCard({ icon, label, value, sub, iconBg }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string; iconBg?: string
 }) {
   return (
-    <div className="rounded-xl border border-[#f97316]/10 bg-[#f97316]/[0.03] p-5 flex items-start gap-4">
+    <div className="rounded-xl border border-[#f97316]/10 bg-[#f97316]/[0.03] p-5 flex items-start gap-4 min-w-0 overflow-hidden">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg ?? 'bg-[#f97316]/15 text-[#f97316]'}`}>
         {icon}
       </div>
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground truncate">{label}</p>
+        <p className="text-2xl font-bold text-foreground mt-0.5 truncate">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
       </div>
     </div>
   )
@@ -121,8 +121,8 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={<Users className="w-5 h-5" />}         label="Total Respondents" value={stats.totalRespondents}  sub="All-time submissions"  iconBg="bg-primary/15 text-primary" />
           <StatCard icon={<Monitor className="w-5 h-5" />}       label="Avg Screen Time"   value={`${stats.averageScreenTime}h`} sub="Per daily log"    iconBg="bg-primary/15 text-primary" />
-          <StatCard icon={<AlertTriangle className="w-5 h-5" />} label="High / Critical"   value={`${stats.riskDistribution.High + stats.riskDistribution.Critical}%`} sub="Of all respondents" iconBg="bg-red-500/15 text-red-400" />
-          <StatCard icon={<CheckCircle className="w-5 h-5" />}   label="Low Risk"          value={`${stats.riskDistribution.Low}%`} sub="Healthy range"  iconBg="bg-green-500/15 text-green-400" />
+          <StatCard icon={<AlertTriangle className="w-5 h-5" />} label="High / Critical"   value={`${(stats.riskDistribution.High + stats.riskDistribution.Critical).toFixed(1)}%`} sub="Of all respondents" iconBg="bg-red-500/15 text-red-400" />
+          <StatCard icon={<CheckCircle className="w-5 h-5" />}   label="Low Risk"          value={`${Number(stats.riskDistribution.Low).toFixed(1)}%`} sub="Healthy range"  iconBg="bg-green-500/15 text-green-400" />
         </div>
       ) : (
         <p className="text-sm text-destructive">Failed to load statistics.</p>
