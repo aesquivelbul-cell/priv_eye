@@ -272,12 +272,7 @@ export default function AdminUsersPage() {
                 pageUsers.map((user, idx) => (
                   <tr key={user.userId ?? `${user.email}-${idx}`} onClick={() => handleRowClick(user.userId, user.email)} className="border-t border-border hover:bg-muted/50 cursor-pointer transition-colors" tabIndex={0} role="button" aria-label={`View details for ${user.email}`} onKeyDown={(e) => e.key === 'Enter' && handleRowClick(user.userId, user.email)}>
                     <td className="px-4 py-3 text-foreground">
-                      <div className="flex items-center gap-2">
-                        {user.email || '—'}
-                        {!user.userId && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">survey</span>
-                        )}
-                      </div>
+                      {user.email || '—'}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{user.age ?? '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{user.gender ?? '—'}</td>
