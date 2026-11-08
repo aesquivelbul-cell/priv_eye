@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Shield } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { isAdmin } from '@/lib/admin-guard';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,24 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('view_as_user');
+          document.cookie = 'view_as_user=; path=/; max-age=0; SameSite=Lax';
+        }
+        if (isAdmin(data.user)) {
+          router.replace('/admin/dashboard');
+        } else {
+          router.replace('/dashboard');
+        }
+      }
+    });
+  }, [router, supabase]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -27,12 +46,20 @@ export default function LoginPage() {
     setError('');
     try {
       if (!supabase) throw new Error('Service not configured.');
-      const { error: err } = await supabase.auth.signInWithPassword({
+      const { data, error: err } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
       if (err) throw err;
-      router.push('/dashboard');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('view_as_user');
+        document.cookie = 'view_as_user=; path=/; max-age=0; SameSite=Lax';
+      }
+      if (isAdmin(data?.user)) {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {

@@ -109,6 +109,12 @@ export function MainLayout({ children }: MainLayoutProps) {
             {isAdminUser && (
               <Link
                 href="/admin/dashboard"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('view_as_user');
+                    document.cookie = 'view_as_user=; path=/; max-age=0; SameSite=Lax';
+                  }
+                }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#f97316] bg-[#f97316]/10 hover:bg-[#f97316]/20 transition-all ml-1"
               >
                 <ShieldCheck className="w-4 h-4" />

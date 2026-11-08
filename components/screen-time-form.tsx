@@ -578,6 +578,7 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
       await onSubmit({ ...cvsq, ...survey });
     } catch (ex) {
       setError(ex instanceof Error ? ex.message : 'Failed to submit. Please try again.');
+      scrollTop();
     } finally {
       setIsLoading(false);
     }

@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { MainLayout } from '@/components/main-layout';
 import { MetricCard } from '@/components/dashboard-card';
 import { Button } from '@/components/form-components';
+import { isAdmin } from '@/lib/admin-guard';
 
 /* ── Section icon ───────────────────────────────────────────────────── */
 function SectionIcon({ icon }: { icon: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const [analytics,   setAnalytics]   = useState<any>(null);
   const [streak,      setStreak]      = useState(0);
   const [groupAvg,    setGroupAvg]    = useState<any>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -47,6 +49,22 @@ export default function DashboardPage() {
         if (!supabase) { router.push('/login'); return; }
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) { router.push('/login'); return; }
+
+        const admin = isAdmin(authUser);
+        setIsAdminUser(admin);
+        if (admin) {
+          const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+          const hasUserCookie = typeof document !== 'undefined' && document.cookie.split('; ').some((c) => c === 'view_as_user=true');
+          const viewingAsUser =
+            (urlParams && urlParams.get('view') === 'user') ||
+            hasUserCookie ||
+            (typeof window !== 'undefined' && sessionStorage.getItem('view_as_user') === 'true');
+
+          if (!viewingAsUser) {
+            router.replace('/admin/dashboard');
+            return;
+          }
+        }
 
         const { data: profile } = await supabase
           .from('user_profiles').select('*').eq('user_id', authUser.id).single();
@@ -126,6 +144,37 @@ export default function DashboardPage() {
         rounded-[2rem] px-4 py-6 sm:px-8 sm:py-10
         bg-[radial-gradient(circle_at_8%_0%,rgba(249,115,22,0.08),transparent_30%),linear-gradient(160deg,rgba(251,191,100,0.10),rgba(249,115,22,0.04)_50%,rgba(180,100,30,0.06))]
         dark:bg-[radial-gradient(circle_at_8%_0%,rgba(249,115,22,0.14),transparent_32%),linear-gradient(135deg,rgba(67,28,12,0.45),rgba(15,10,7,0.08)_52%,rgba(120,53,15,0.12))]">
+        {/* ── Admin Preview Banner (shown when Admin views User Dashboard) ── */}
+        {isAdminUser && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-[#f97316]/30 bg-[#f97316]/10 text-foreground shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-lg bg-[#f97316]/20 flex items-center justify-center text-[#f97316] shrink-0 font-bold text-xs">
+                ADM
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Admin Mode: Viewing Student Dashboard
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You are previewing the student-facing dashboard experience.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  sessionStorage.removeItem('view_as_user');
+                  document.cookie = 'view_as_user=; path=/; max-age=0; SameSite=Lax';
+                }
+                router.push('/admin/dashboard');
+              }}
+              className="self-start sm:self-auto px-4 py-2 rounded-xl bg-[#f97316] text-[#0f0a07] font-semibold text-xs hover:bg-[#fb923c] transition-colors shrink-0 shadow-sm flex items-center gap-1.5"
+            >
+              Return to Admin Dashboard
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* ── Risk alert banner ─────────────────────────────────────── */}
         {prediction && rl >= 2 && (

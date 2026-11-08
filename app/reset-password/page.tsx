@@ -60,11 +60,12 @@ export default function ResetPasswordPage() {
         }
         await new Promise(r => setTimeout(r, 400));
       }
-      // No session after retries — link was invalid or already used
-      setError('This reset link is invalid or has expired. Please request a new one.');
+      // No session after retries — link was invalid or already used.
+      // Redirect to forgot-password so the user can request a fresh link.
+      router.replace('/forgot-password?expired=1');
     };
     init();
-  }, [supabase]);
+  }, [supabase, router]);
 
   const strength = getStrength(password);
 

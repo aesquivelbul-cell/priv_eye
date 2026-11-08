@@ -427,7 +427,7 @@ export async function POST(request: NextRequest) {
 
     if (logError) {
       console.error('Error saving daily log:', logError);
-      return NextResponse.json({ error: 'Failed to save daily log' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to save daily log: ' + logError.message }, { status: 500 });
     }
 
     // ── Save prediction ───────────────────────────────────────────────────────
@@ -461,7 +461,7 @@ export async function POST(request: NextRequest) {
 
     if (predictionError) {
       console.error('Error saving prediction:', predictionError);
-      return NextResponse.json({ error: 'Failed to save prediction' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to save prediction: ' + predictionError.message }, { status: 500 });
     }
 
     // Fire-and-forget Flask retrain notification

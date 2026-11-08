@@ -1,7 +1,7 @@
 'use client';
 
-import { Menu } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { Menu, LayoutDashboard } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 
@@ -22,6 +22,7 @@ const pageTitles: Record<string, string> = {
 
 export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [email, setEmail] = useState('');
 
   useEffect(() => {
@@ -50,9 +51,24 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
         </span>
       </div>
 
-      {email && (
-        <span className="text-xs text-muted-foreground hidden sm:block">{email}</span>
-      )}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('view_as_user', 'true');
+              document.cookie = 'view_as_user=true; path=/; max-age=86400; SameSite=Lax';
+            }
+            router.push('/dashboard?view=user');
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#f97316] hover:bg-[#f97316]/15 bg-[#f97316]/10 border border-[#f97316]/25 transition-all"
+        >
+          <LayoutDashboard className="w-3.5 h-3.5" />
+          <span>User Dashboard</span>
+        </button>
+        {email && (
+          <span className="text-xs text-muted-foreground hidden sm:block">{email}</span>
+        )}
+      </div>
     </header>
   );
 }

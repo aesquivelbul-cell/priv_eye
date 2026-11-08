@@ -15,7 +15,14 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      // Recovery links use PKCE — always land on the reset-password page
+      // regardless of whether Supabase preserved the ?next= query param.
+      const typeParam = searchParams.get('type')
+      const destination =
+        typeParam === 'recovery' || next === '/reset-password'
+          ? '/reset-password'
+          : next
+      return NextResponse.redirect(`${origin}${destination}`)
     }
   }
 

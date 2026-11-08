@@ -52,16 +52,44 @@ export async function updateSession(request: NextRequest) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
-      return NextResponse.redirect(url)
+      const redirectRes = NextResponse.redirect(url)
+      supabaseResponse.cookies.getAll().forEach((c) => redirectRes.cookies.set(c.name, c.value, c))
+      return redirectRes
     }
     if (!isAdmin(user)) {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
       url.searchParams.set('error', 'access_denied')
-      return NextResponse.redirect(url)
+      const redirectRes = NextResponse.redirect(url)
+      supabaseResponse.cookies.getAll().forEach((c) => redirectRes.cookies.set(c.name, c.value, c))
+      return redirectRes
     }
-    // Admin user — allow through
+    // Admin user navigating inside /admin: clear view_as_user cookie so future direct visits default to admin dashboard
+    if (request.cookies.has('view_as_user')) {
+      supabaseResponse.cookies.delete('view_as_user')
+    }
     return supabaseResponse
+  }
+
+  // Intercept /dashboard requests: If the user is an admin, send them to /admin/dashboard
+  // UNLESS they explicitly opted into viewing as a user (?view=user or view_as_user cookie)
+  if (request.nextUrl.pathname === '/dashboard') {
+    const isUserView =
+      request.nextUrl.searchParams.get('view') === 'user' ||
+      request.cookies.get('view_as_user')?.value === 'true'
+
+    if (user && isAdmin(user)) {
+      if (!isUserView) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin/dashboard'
+        const redirectRes = NextResponse.redirect(url)
+        supabaseResponse.cookies.getAll().forEach((c) => redirectRes.cookies.set(c.name, c.value, c))
+        return redirectRes
+      } else {
+        supabaseResponse.cookies.set('view_as_user', 'true', { path: '/' })
+        return supabaseResponse
+      }
+    }
   }
 
   if (

@@ -262,7 +262,10 @@ export default function DailyLogPage() {
       setAlreadyLoggedToday(true);
     } catch (err) {
       setIsSubmitting(false);
-      setError(err instanceof Error ? err.message : 'Failed to save daily log');
+      const msg = err instanceof Error ? err.message : 'Failed to save daily log';
+      setError(msg);
+      toast.error('Submission Failed', { description: msg });
+      throw err;
     }
   };
 

@@ -81,7 +81,13 @@ export function AdminSidebar({ isOpen }: AdminSidebarProps) {
         {/* Footer */}
         <div className="px-3 pb-4 pt-3 border-t border-[#f97316]/20 space-y-1">
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('view_as_user', 'true');
+                document.cookie = 'view_as_user=true; path=/; max-age=86400; SameSite=Lax';
+              }
+              router.push('/dashboard?view=user');
+            }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#f97316] hover:bg-[#f97316]/10 transition-colors border border-[#f97316]/20 text-sm font-medium"
           >
             <LayoutDashboard className="w-4 h-4" />
