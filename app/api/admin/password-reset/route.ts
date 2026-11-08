@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             targetAuthId = existing.id
           } else {
             const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-              email: targetEmail,
+              email: targetEmail ?? undefined,
               password: tempPassword,
               email_confirm: true,
             })
@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
             }
             targetAuthId = newUser.user.id
 
-            await adminClient.from('daily_logs').update({ user_id: targetAuthId }).eq('email', targetEmail)
-            const { first_name, last_name } = splitNameFromEmail(targetEmail)
+            await adminClient.from('daily_logs').update({ user_id: targetAuthId }).eq('email', targetEmail ?? '')
+            const { first_name, last_name } = splitNameFromEmail(targetEmail ?? '')
             await adminClient.from('user_profiles').insert({
               user_id: targetAuthId,
               first_name,

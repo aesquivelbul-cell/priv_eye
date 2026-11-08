@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, Lock, Send, Copy, Check,
-  Pencil, EyeOff, Eye, AlertTriangle, X, ShieldAlert,
+  Pencil, EyeOff, Eye, AlertTriangle, X, ShieldAlert, Bell,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -276,6 +276,13 @@ export default function AdminUserDetailPage() {
   const [auditLoading, setAuditLoading] = useState(true)
   const [auditError, setAuditError] = useState('')
 
+  // Send notification
+  const [showNotifyModal, setShowNotifyModal] = useState(false)
+  const [notifyContent, setNotifyContent] = useState('')
+  const [notifySeverity, setNotifySeverity] = useState<'info' | 'high' | 'critical'>('info')
+  const [notifyLoading, setNotifyLoading] = useState(false)
+  const [notifyResult, setNotifyResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
   const isRegistered = UUID_RE.test(userId ?? '')
 
   // ── Load user data ──────────────────────────────────────────────────────────
@@ -310,16 +317,20 @@ export default function AdminUserDetailPage() {
   // ── Load audit history ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return
+    // For non-registered users (email-keyed), wait until profile data is loaded
+    if (!isRegistered && !data) return
     setAuditLoading(true)
+    setAuditError('')
+    const emailKey = data?.profile?.email ?? decodeURIComponent(userId)
     const qp = isRegistered
       ? `userId=${encodeURIComponent(userId)}`
-      : `userEmail=${encodeURIComponent(data?.profile?.email ?? decodeURIComponent(userId))}`
+      : `userEmail=${encodeURIComponent(emailKey)}`
     fetch(`/api/admin/audit?${qp}&limit=50`)
       .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j?.error || 'Failed'); return j })
       .then(j => setAuditEvents(j.events || []))
       .catch(err => setAuditError(err instanceof Error ? err.message : 'Failed to load audit history'))
       .finally(() => setAuditLoading(false))
-  }, [userId, isRegistered, data?.profile?.email])
+  }, [userId, isRegistered, data])
 
   // ── Profile save (after confirmation) ──────────────────────────────────────
   const handleSaveProfile = async () => {
@@ -453,6 +464,33 @@ export default function AdminUserDetailPage() {
     } finally { setResetLoading(false) }
   }
 
+  // ── Send notification ───────────────────────────────────────────────────────
+  const handleSendNotification = async () => {
+    if (!notifyContent.trim()) return
+    setNotifyLoading(true); setNotifyResult(null)
+    // For survey respondents we need their auth user_id. Only works if they have an auth account.
+    const targetId = isRegistered ? userId : null
+    if (!targetId) {
+      setNotifyResult({ ok: false, msg: 'This user does not have a login account yet. Generate a password first.' })
+      setNotifyLoading(false)
+      return
+    }
+    try {
+      const res = await fetch('/api/admin/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: targetId, content: notifyContent.trim(), severity: notifySeverity }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Failed')
+      setNotifyResult({ ok: true, msg: 'Notification sent — the user will see it next time they open the app.' })
+      setNotifyContent('')
+    } catch (err) {
+      setNotifyResult({ ok: false, msg: err instanceof Error ? err.message : 'Failed to send' })
+    } finally {
+      setNotifyLoading(false) }
+  }
+
   const displayName = formatDisplayName(
     data?.profile?.first_name,
     data?.profile?.last_name,
@@ -479,15 +517,24 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
 
-        {/* Delete user — requires confirmation */}
+        {/* Actions — notify + delete */}
         {!loading && data && (
-          <button
-            onClick={() => setShowDeleteUser(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Delete User
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowNotifyModal(true); setNotifyResult(null) }}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-muted text-sm font-semibold rounded-lg transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              Send Notification
+            </button>
+            <button
+              onClick={() => setShowDeleteUser(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Delete User
+            </button>
+          </div>
         )}
       </div>
 
@@ -896,6 +943,58 @@ export default function AdminUserDetailPage() {
             )}
           </section>
         </>
+      )}
+
+      {/* ── Send Notification modal ── */}
+      {showNotifyModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-background border border-border rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Send Notification</h2>
+              <button onClick={() => setShowNotifyModal(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Send an in-app notification to <strong>{displayName || data?.profile?.email}</strong>.
+              They will see it in the bell icon on their dashboard.
+            </p>
+            <textarea
+              value={notifyContent}
+              onChange={e => setNotifyContent(e.target.value)}
+              placeholder="e.g. Your risk score has increased. Please reduce screen time."
+              rows={3}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+            />
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Severity</label>
+              <select
+                value={notifySeverity}
+                onChange={e => setNotifySeverity(e.target.value as 'info' | 'high' | 'critical')}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="info">Info</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            {notifyResult && (
+              <p className={`text-sm p-3 rounded-lg ${notifyResult.ok ? 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400'}`}>
+                {notifyResult.msg}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => setShowNotifyModal(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSendNotification} disabled={notifyLoading || !notifyContent.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {notifyLoading ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Save Profile confirmation modal ── */}

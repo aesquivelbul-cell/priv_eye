@@ -287,9 +287,19 @@ export default function ImprovementPage() {
 
       {s.total === 0 ? (
         <div className="flex items-center justify-center min-h-64 rounded-xl border-2 border-dashed border-border">
-          <div className="text-center space-y-2 p-8">
+          <div className="text-center space-y-3 p-8 max-w-md">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto">
+              <Activity className="w-6 h-6 text-muted-foreground" />
+            </div>
             <p className="text-lg font-semibold text-foreground">Not enough data yet</p>
-            <p className="text-sm text-muted-foreground">Users need at least 2 logged days to appear here.</p>
+            <p className="text-sm text-muted-foreground">
+              Improvement tracking requires each user to have{" "}
+              <strong>at least 2 daily log submissions</strong>.
+              Once a user has 2 or more entries they will appear here automatically.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Survey-imported respondents have only 1 historical log and are excluded until they submit a live follow-up.
+            </p>
           </div>
         </div>
       ) : (
@@ -299,7 +309,8 @@ export default function ImprovementPage() {
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="text-sm text-muted-foreground">Total Tracked</p>
               <p className="text-3xl font-bold text-foreground mt-1">{s.total}</p>
-              <p className="text-xs text-muted-foreground mt-1">registered users with ≥2 logs</p>
+              <p className="text-xs text-muted-foreground mt-1">registered users with ≥2 live logs</p>
+              <p className="text-xs text-muted-foreground">Survey respondents need a 2nd submission to appear</p>
             </div>
             <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 p-5">
               <p className="text-sm text-green-700 dark:text-green-400">Improved</p>

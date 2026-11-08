@@ -1,6 +1,7 @@
 'use client'
 
-import { CheckCircle, XCircle, Shield, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { CheckCircle, XCircle, Shield, RefreshCw, Cpu, AlertTriangle } from 'lucide-react'
 
 interface EnvCheck {
   key: string
@@ -10,6 +11,22 @@ interface EnvCheck {
 }
 
 export default function AdminSettingsPage() {
+  const [retraining, setRetraining] = useState(false)
+  const [retrainResult, setRetrainResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const handleRetrain = async () => {
+    setRetraining(true)
+    setRetrainResult(null)
+    try {
+      const res = await fetch('/api/admin/ml-retrain', { method: 'POST' })
+      const body = await res.json()
+      setRetrainResult({ ok: res.ok, msg: body.message ?? body.error ?? (res.ok ? 'Retrain started' : 'Failed') })
+    } catch {
+      setRetrainResult({ ok: false, msg: 'ML backend unavailable' })
+    } finally {
+      setRetraining(false)
+    }
+  }
 
   // Check which public env vars are configured (we can only check NEXT_PUBLIC_ ones client-side)
   const envChecks: EnvCheck[] = [
@@ -37,6 +54,31 @@ export default function AdminSettingsPage() {
         <h1 className="text-3xl font-bold text-foreground">Settings</h1>
         <p className="text-muted-foreground mt-1">System configuration and status overview</p>
       </div>
+
+      {/* ML Model Retrain */}
+      <section aria-labelledby="retrain-heading" className="border border-border rounded-xl p-6">
+        <h2 id="retrain-heading" className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Cpu className="w-5 h-5" /> ML Model Management
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Trigger a manual retraining of the Random Forest risk model using the latest daily logs data.
+          The ML backend must be running for this to succeed.
+        </p>
+        <button
+          onClick={handleRetrain}
+          disabled={retraining}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors"
+        >
+          <RefreshCw className={`w-4 h-4 ${retraining ? 'animate-spin' : ''}`} />
+          {retraining ? 'Retraining…' : 'Retrain Model'}
+        </button>
+        {retrainResult && (
+          <div className={`mt-3 flex items-center gap-2 text-sm ${retrainResult.ok ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+            {retrainResult.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+            {retrainResult.msg}
+          </div>
+        )}
+      </section>
 
       {/* Environment Variables */}
       <section aria-labelledby="env-heading" className="border border-border rounded-xl p-6">
