@@ -67,12 +67,23 @@ export default function DashboardPage() {
         }
 
         const { data: profile } = await supabase
-          .from('user_profiles').select('*').eq('user_id', authUser.id).single();
+          .from('user_profiles').select('*').eq('user_id', authUser.id).maybeSingle();
 
-        const displayName =
-          profile?.first_name && profile?.last_name
-            ? `${profile.first_name} ${profile.last_name}`
-            : profile?.first_name ?? authUser.user_metadata?.name ?? authUser.email?.split('@')[0] ?? 'User';
+        const pFirst = (profile?.first_name || '').trim();
+        const pLast  = (profile?.last_name || '').trim();
+        const metaName = (authUser.user_metadata?.name || authUser.user_metadata?.full_name || '').trim();
+        const emailFallback = (authUser.email || '').split('@')[0] || 'User';
+
+        let displayName = '';
+        if (pFirst && pLast) {
+          displayName = `${pFirst} ${pLast}`;
+        } else if (pFirst) {
+          displayName = pFirst;
+        } else if (metaName) {
+          displayName = metaName;
+        } else {
+          displayName = emailFallback;
+        }
 
         setUser({ ...authUser, profile: profile || null, displayName });
 

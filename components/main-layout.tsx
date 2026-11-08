@@ -48,12 +48,26 @@ export function MainLayout({ children }: MainLayoutProps) {
         setIsAdminUser(isAdmin(authUser));
         const { data: profile } = await supabase
           .from('user_profiles').select('first_name, last_name')
-          .eq('user_id', authUser.id).single();
-        const displayName =
-          profile?.first_name && profile?.last_name
-            ? `${profile.first_name} ${profile.last_name}`
-            : profile?.first_name ?? authUser.email?.split('@')[0] ?? 'User';
-        setUser({ displayName, initial: displayName.charAt(0).toUpperCase() });
+          .eq('user_id', authUser.id).maybeSingle();
+
+        const pFirst = (profile?.first_name || '').trim();
+        const pLast  = (profile?.last_name || '').trim();
+        const metaName = (authUser.user_metadata?.name || authUser.user_metadata?.full_name || '').trim();
+        const emailFallback = (authUser.email || '').split('@')[0] || 'User';
+
+        let displayName = '';
+        if (pFirst && pLast) {
+          displayName = `${pFirst} ${pLast}`;
+        } else if (pFirst) {
+          displayName = pFirst;
+        } else if (metaName) {
+          displayName = metaName;
+        } else {
+          displayName = emailFallback;
+        }
+
+        const initial = (displayName.charAt(0) || emailFallback.charAt(0) || 'U').toUpperCase();
+        setUser({ displayName, initial });
       } catch { /* non-fatal */ }
     };
     load();

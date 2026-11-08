@@ -105,10 +105,32 @@ export async function POST(request: NextRequest) {
 
     // ── Profile upsert ───────────────────────────────────────────────────────
     try {
+      const { data: existingProfile } = await supabase
+        .from('user_profiles')
+        .select('first_name, last_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      let firstName = (formData.firstName || '').trim();
+      let lastName  = (formData.lastName  || '').trim();
+
+      if (!firstName && existingProfile?.first_name) {
+        firstName = existingProfile.first_name.trim();
+      }
+      if (!lastName && existingProfile?.last_name) {
+        lastName = existingProfile.last_name.trim();
+      }
+
+      if (!firstName && user.user_metadata?.name) {
+        const parts = String(user.user_metadata.name).trim().split(/\s+/);
+        firstName = parts[0] || '';
+        lastName = lastName || parts.slice(1).join(' ') || '';
+      }
+
       await supabase.from('user_profiles').upsert({
         user_id:        user.id,
-        first_name:     formData.firstName || '',
-        last_name:      formData.lastName  || '',
+        first_name:     firstName,
+        last_name:      lastName,
         age:            formData.age,
         gender:         formData.gender,
         year_level:     formData.yearLevel,

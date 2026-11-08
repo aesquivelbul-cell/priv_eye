@@ -150,10 +150,19 @@ export default function DailyLogPage() {
         );
         setProfileComplete(isProfileComplete);
 
-        if (profile || last) {
+        let initialFirst = ((profile as any)?.first_name || '').trim();
+        let initialLast  = ((profile as any)?.last_name  || '').trim();
+
+        if (!initialFirst && user.user_metadata?.name) {
+          const parts = String(user.user_metadata.name).trim().split(/\s+/);
+          initialFirst = parts[0] || '';
+          initialLast  = parts.slice(1).join(' ') || '';
+        }
+
+        if (profile || last || initialFirst) {
           setPreviousLog({
-            firstName:    (profile as any)?.first_name || '',
-            lastName:     (profile as any)?.last_name  || '',
+            firstName:    initialFirst,
+            lastName:     initialLast,
             age:          ageRange,
             gender:       (profile as any)?.gender       || (last?.gender as string)       || '',
             yearLevel:    (profile as any)?.year_level   || (last?.year_level as string)   || '',
