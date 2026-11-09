@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-// Ultra-fast Gemini models verified operational in this environment
+// Ultra-fast Gemini models verified operational and active with current API quota
 const GEMINI_MODELS = [
-  'gemini-3.5-flash-lite',
+  'gemini-flash-latest',
   'gemini-flash-lite-latest',
-  'gemini-3.1-flash-lite',
 ];
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
