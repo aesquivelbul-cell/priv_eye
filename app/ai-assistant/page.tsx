@@ -1,15 +1,32 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/main-layout';
 import { AiChat } from '@/components/ai-chat';
-import { Bot, Sparkles, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { Bot, Sparkles, ShieldCheck, HeartHandshake, ArrowLeft } from 'lucide-react';
 
 export default function AiAssistantPage() {
+  const router = useRouter();
+
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-6 py-4">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
+        {/* Navigation & Header */}
+        <div className="flex flex-col gap-4 border-b border-border pb-6">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Go Back
+            </button>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
+              <Sparkles className="w-3.5 h-3.5" />
+              EyeGuard AI Assistant
+            </div>
+          </div>
+
           <div className="space-y-1">
             <h1 className="text-3xl font-bold flex items-center gap-2.5 text-foreground">
               <Bot className="w-8 h-8 text-primary" />
@@ -18,10 +35,6 @@ export default function AiAssistantPage() {
             <p className="text-sm text-muted-foreground">
               Your conversational eye wellness companion. Ask questions about your screen fatigue, ergonomic recommendations, or the 20-20-20 rule.
             </p>
-          </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-            <Sparkles className="w-3.5 h-3.5" />
-            Empowered by EyeGuard Core
           </div>
         </div>
 
