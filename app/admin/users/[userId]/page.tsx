@@ -531,6 +531,7 @@ export default function AdminUserDetailPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
+    <>
     <div className="space-y-6 print:hidden">
 
       {/* Header */}
@@ -1325,5 +1326,217 @@ export default function AdminUserDetailPage() {
         </div>
       )}
     </div>
+
+    {/* ════════════════════════════════════════════════════════════════════════
+        FORMAL CLINICAL REPORT (Print / PDF Only - identical to /history)
+    ════════════════════════════════════════════════════════════════════════ */}
+    {data && (
+      <div className="hidden print:block p-8 bg-white text-black font-sans leading-normal max-w-4xl mx-auto">
+        {(() => {
+          const logs = data.logs || []
+          const latestLog = logs[0]
+          const latestSurvey = data.surveyResponses?.[0]
+          const n = logs.length || 1
+          const avgScreenTime = (logs.reduce((acc, l) => acc + (Number(l.screen_time) || 0), 0) / n).toFixed(1)
+          const avgSleepHours  = (logs.reduce((acc, l) => acc + (Number(l.sleep_hours) || 0), 0) / n).toFixed(1)
+          const highRiskCount = logs.filter(l => l.risk_level === 'High' || l.risk_level === 'Critical').length
+          const highRiskPct   = Math.round((highRiskCount / n) * 100)
+          const cvsqScore     = latestLog?.cvsq_score ?? (latestSurvey?.cvsq_total as number | null) ?? null
+          const cvsqStatus    = latestLog?.cvsq_status ?? (latestSurvey?.cvsq_status as string | null) ?? (cvsqScore != null ? (cvsqScore >= 7 ? 'Positive for CVS' : cvsqScore >= 5 ? 'High Probability' : cvsqScore >= 3 ? 'Low Probability' : 'Normal') : 'Not Assessed')
+
+          const patientName   = displayName || `${data.profile?.first_name ?? ''} ${data.profile?.last_name ?? ''}`.trim() || 'Anonymous User'
+          const patientEmail  = data.profile?.email ?? decodeURIComponent(userId ?? '')
+          const patientAge    = data.profile?.age ?? latestLog?.age ?? 'N/A'
+          const patientGender = data.profile?.gender ?? latestLog?.gender ?? 'N/A'
+          const patientMajor  = data.profile?.field_of_study ?? latestLog?.field_of_study ?? 'General / Undisclosed'
+          const patientYear   = data.profile?.year_level ?? latestLog?.year_level ?? 'N/A'
+
+          return (
+            <>
+              {/* Header Banner */}
+              <div className="border-b-2 border-black pb-4 mb-6 flex items-start justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold uppercase tracking-tight text-black">
+                    EyeGuard Clinical Patient Intake Report
+                  </h1>
+                  <p className="text-xs text-gray-700 font-semibold mt-0.5">
+                    Standardized Computer Vision Syndrome (CVS) & Digital Eye Strain (DES) Assessment
+                  </p>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Referencing AOA Clinical Guidelines & Validated CVS-Smart Diagnostic Criteria (Iqbal et al., 2024)
+                  </p>
+                </div>
+                <div className="text-right text-xs text-gray-700 space-y-0.5">
+                  <p className="font-bold text-black">CONFIDENTIAL MEDICAL DOCUMENT</p>
+                  <p>Date Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p>Evaluation Period: {logs[logs.length - 1]?.date ?? 'N/A'} to {logs[0]?.date ?? 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Section 1: Patient Demographics */}
+              <div className="mb-6 border border-gray-400 rounded p-4 bg-gray-50/50">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-300 pb-1 mb-3">
+                  1. Patient Identification & Demographics
+                </h2>
+                <div className="grid grid-cols-3 gap-y-2 text-xs">
+                  <div><span className="font-semibold text-gray-700">Patient Name:</span> <span className="font-bold text-black">{patientName}</span></div>
+                  <div><span className="font-semibold text-gray-700">Email/Identifier:</span> <span>{patientEmail}</span></div>
+                  <div><span className="font-semibold text-gray-700">Age / Gender:</span> <span>{patientAge} yrs / {patientGender}</span></div>
+                  <div><span className="font-semibold text-gray-700">Academic Major:</span> <span>{patientMajor}</span></div>
+                  <div><span className="font-semibold text-gray-700">Academic Level:</span> <span>{patientYear}</span></div>
+                  <div><span className="font-semibold text-gray-700">Total Evaluations:</span> <span className="font-bold text-black">{logs.length} sessions recorded</span></div>
+                </div>
+              </div>
+
+              {/* Section 2: Longitudinal Exposure & Diagnostic Stratification */}
+              <div className="mb-6 grid grid-cols-4 gap-3 text-center">
+                <div className="border border-gray-300 p-2.5 rounded">
+                  <p className="text-[10px] uppercase font-bold text-gray-600">Daily Screen Exposure</p>
+                  <p className="text-xl font-bold text-black mt-1">{avgScreenTime} <span className="text-xs font-normal">hrs/day</span></p>
+                  <p className="text-[9px] text-gray-500 mt-0.5">{Number(avgScreenTime) > 6 ? '⚠️ Exceeds safe ergonomic limit' : 'Normal exposure range'}</p>
+                </div>
+                <div className="border border-gray-300 p-2.5 rounded">
+                  <p className="text-[10px] uppercase font-bold text-gray-600">Average Sleep Recovery</p>
+                  <p className="text-xl font-bold text-black mt-1">{avgSleepHours} <span className="text-xs font-normal">hrs/night</span></p>
+                  <p className="text-[9px] text-gray-500 mt-0.5">{Number(avgSleepHours) < 7 ? '⚠️ Below optimal eye repair threshold' : 'Adequate tear repair'}</p>
+                </div>
+                <div className="border border-gray-300 p-2.5 rounded">
+                  <p className="text-[10px] uppercase font-bold text-gray-600">CVS-Smart Severity Score</p>
+                  <p className="text-xl font-bold text-black mt-1">{cvsqScore != null ? `${cvsqScore}/10` : '—'}</p>
+                  <p className="text-[9px] font-semibold text-black mt-0.5">{cvsqStatus}</p>
+                </div>
+                <div className="border border-gray-300 p-2.5 rounded">
+                  <p className="text-[10px] uppercase font-bold text-gray-600">High / Critical Incidence</p>
+                  <p className="text-xl font-bold text-black mt-1">{highRiskPct}%</p>
+                  <p className="text-[9px] text-gray-500 mt-0.5">{highRiskCount} out of {n} days flagged high risk</p>
+                </div>
+              </div>
+
+              {/* Section 3: Baseline Ergonomic & Environmental Setup */}
+              <div className="mb-6 border border-gray-400 rounded p-4">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-300 pb-1 mb-3">
+                  2. Ergonomic & Optical Workstation Baseline
+                </h2>
+                <div className="grid grid-cols-3 gap-y-2 text-xs">
+                  <div><span className="font-semibold text-gray-700">Primary Device:</span> <span>{latestLog?.primary_device ?? (latestSurvey?.eg_primary_device as string) ?? 'Laptop / Monitor'}</span></div>
+                  <div><span className="font-semibold text-gray-700">Viewing Distance:</span> <span>{latestLog?.screen_distance ?? (latestSurvey?.eg_screen_distance as string) ?? '40-60 cm'}</span></div>
+                  <div><span className="font-semibold text-gray-700">Display Brightness:</span> <span>{latestLog?.screen_brightness ?? `${latestLog?.brightness ?? 50}%`}</span></div>
+                  <div><span className="font-semibold text-gray-700">Continuous Screen Use:</span> <span>{latestLog?.continuous_screen_use ?? (latestSurvey?.eg_continuous_screen_use as string) ?? '1-2 hours'}</span></div>
+                  <div><span className="font-semibold text-gray-700">20-20-20 Rule Compliance:</span> <span>{latestLog?.follows_20_20_20 ?? (latestSurvey?.eg_follows_20_20_20 as string) ?? 'Rarely / Sometimes'}</span></div>
+                  <div><span className="font-semibold text-gray-700">Dark Room Usage:</span> <span>{latestLog?.dark_room_use ?? (latestSurvey?.eg_dark_room_use as string) ?? 'Sometimes'}</span></div>
+                  <div><span className="font-semibold text-gray-700">Wears Eyeglasses:</span> <span>{latestLog?.wears_glasses ?? (latestSurvey?.eg_wears_glasses as string) ?? 'No'}</span></div>
+                  <div><span className="font-semibold text-gray-700">Blue-Light Blocking Filter:</span> <span>{latestLog?.blue_light_filter ?? (latestSurvey?.eg_blue_light_filter as string) ?? 'Yes'}</span></div>
+                  <div><span className="font-semibold text-gray-700">Break Frequency:</span> <span>{latestLog?.break_frequency ?? (latestSurvey?.eg_break_frequency as string) ?? 'Every 1-2 hours'}</span></div>
+                </div>
+              </div>
+
+              {/* Section 4: Longitudinal Symptom Manifestation Table */}
+              <div className="mb-6">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-black mb-2">
+                  3. Longitudinal Physiological & Symptom Logs (All Records)
+                </h2>
+                <table className="w-full border-collapse border border-gray-400 text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 border-b border-gray-400 text-left font-bold text-gray-800">
+                      <th className="border-r border-gray-400 p-2 w-24">Date</th>
+                      <th className="border-r border-gray-400 p-2 w-20 text-center">Screen</th>
+                      <th className="border-r border-gray-400 p-2 w-20 text-center">Sleep</th>
+                      <th className="border-r border-gray-400 p-2 w-20 text-center">Brightness</th>
+                      <th className="border-r border-gray-400 p-2">Reported Clinical Symptoms</th>
+                      <th className="p-2 w-24 text-center">Risk Tier</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-300">
+                    {logs.map((log) => {
+                      const syms = fullActiveSymptomsList(log)
+                      return (
+                        <tr key={log.id} className="border-b border-gray-200">
+                          <td className="border-r border-gray-400 p-2 font-mono font-bold text-black">{log.date}</td>
+                          <td className="border-r border-gray-400 p-2 text-center font-mono">{log.screen_time} hrs</td>
+                          <td className="border-r border-gray-400 p-2 text-center font-mono">{log.sleep_hours} hrs</td>
+                          <td className="border-r border-gray-400 p-2 text-center font-mono">{log.brightness}%</td>
+                          <td className="border-r border-gray-400 p-2 text-gray-800 leading-snug">
+                            {syms.join(', ')}
+                          </td>
+                          <td className="p-2 text-center font-bold text-black">
+                            {log.risk_level}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Section 5: Clinician / Optometrist Examination Worksheet */}
+              <div className="border-2 border-black rounded p-4 break-inside-avoid">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-black border-b border-black pb-1 mb-3 flex items-center justify-between">
+                  <span>4. Optometrist / Clinical Examination Notes & Assessment</span>
+                  <span className="text-[10px] font-normal text-gray-600">(For Attending Eye Care Practitioner)</span>
+                </h2>
+
+                <div className="grid grid-cols-2 gap-4 text-xs mb-3">
+                  <div className="border border-gray-300 p-2.5 rounded space-y-2">
+                    <p className="font-bold text-gray-800">Visual Acuity & Refractive Status:</p>
+                    <div className="space-y-1 text-gray-600">
+                      <p>Unaided VA: OD: _______________ OS: _______________</p>
+                      <p>Subjective Refraction: OD: _______________ OS: _______________</p>
+                      <p>Accommodative Amplitude / Lag (FCC): _______________</p>
+                      <p>Near Point of Convergence (NPC): _______________</p>
+                    </div>
+                  </div>
+
+                  <div className="border border-gray-300 p-2.5 rounded space-y-2">
+                    <p className="font-bold text-gray-800">Ocular Surface & Tear Film Evaluation:</p>
+                    <div className="space-y-1 text-gray-600">
+                      <p>Tear Break-Up Time (TBUT): OD: _____ sec &nbsp; OS: _____ sec</p>
+                      <p>Corneal / Conjunctival Staining: [ ] None [ ] Mild [ ] Moderate</p>
+                      <p>Meibomian Gland Dysfunction (MGD): [ ] Grade 0-1 [ ] Grade 2-3</p>
+                      <p>Schirmer Test (if indicated): OD: _____ mm &nbsp; OS: _____ mm</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-gray-300 p-2.5 rounded text-xs mb-4">
+                  <p className="font-bold text-gray-800 mb-1.5">Recommended Clinical Treatment & Management Plan:</p>
+                  <div className="grid grid-cols-3 gap-2 text-gray-700">
+                    <div>[ ] Refractive Correction / New Rx</div>
+                    <div>[ ] Computer / Anti-Fatigue Lenses</div>
+                    <div>[ ] Lubricant Eye Drops (PF)</div>
+                    <div>[ ] Blue-Light Filtering Lenses</div>
+                    <div>[ ] 20-20-20 Ergonomic Protocol</div>
+                    <div>[ ] Follow-up in: ____________</div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <p className="text-gray-500">Clinician Notes / Observations:</p>
+                    <div className="h-10 border-b border-dotted border-gray-400 mt-4" />
+                  </div>
+                </div>
+
+                {/* Signature Row */}
+                <div className="grid grid-cols-3 gap-6 text-xs pt-2">
+                  <div>
+                    <p className="text-gray-500 text-[10px]">Attending Optometrist / Clinician:</p>
+                    <div className="h-7 border-b border-gray-400" />
+                    <p className="text-[10px] text-gray-600 mt-1">Signature & Printed Name</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-[10px]">License Number / Clinic Affiliation:</p>
+                    <div className="h-7 border-b border-gray-400" />
+                    <p className="text-[10px] text-gray-600 mt-1">PRC / Optometry Board Reg. No.</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-[10px]">Date of Examination:</p>
+                    <div className="h-7 border-b border-gray-400" />
+                    <p className="text-[10px] text-gray-600 mt-1">MM / DD / YYYY</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )
+        })()}
+      </div>
+    )}
+  </>
   )
 }
