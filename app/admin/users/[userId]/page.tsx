@@ -709,13 +709,14 @@ export default function AdminUserDetailPage() {
           </section>
 
           {/* ── NEW: Longitudinal Exposure & Diagnostic Summary ── */}
-          {(data.logs || []).length > 0 && (() => {
-            const numLogs = data.logs.length
-            const avgScreen = (data.logs.reduce((acc, l) => acc + (Number(l.screen_time) || 0), 0) / numLogs).toFixed(1)
-            const avgSleep = (data.logs.reduce((acc, l) => acc + (Number(l.sleep_hours) || 0), 0) / numLogs).toFixed(1)
-            const highRiskLogs = data.logs.filter(l => l.risk_level === 'High' || l.risk_level === 'Critical').length
+          {(data?.logs || []).length > 0 && (() => {
+            const logsList = data?.logs || []
+            const numLogs = logsList.length || 1
+            const avgScreen = (logsList.reduce((acc, l) => acc + (Number(l.screen_time) || 0), 0) / numLogs).toFixed(1)
+            const avgSleep = (logsList.reduce((acc, l) => acc + (Number(l.sleep_hours) || 0), 0) / numLogs).toFixed(1)
+            const highRiskLogs = logsList.filter(l => l.risk_level === 'High' || l.risk_level === 'Critical').length
             const highRiskPct = Math.round((highRiskLogs / numLogs) * 100)
-            const latestCVS = data.logs[0]?.cvsq_status ?? data.surveyResponses?.[0]?.cvsq_status ?? 'Evaluated'
+            const latestCVS = logsList[0]?.cvsq_status ?? data?.surveyResponses?.[0]?.cvsq_status ?? 'Evaluated'
 
             return (
               <div className="space-y-3 print:hidden">
@@ -1333,7 +1334,7 @@ export default function AdminUserDetailPage() {
     {data && (
       <div className="hidden print:block p-8 bg-white text-black font-sans leading-normal max-w-4xl mx-auto">
         {(() => {
-          const logs = data.logs || []
+          const logs = data?.logs || []
           const latestLog = logs[0]
           const latestSurvey = data.surveyResponses?.[0]
           const n = logs.length || 1

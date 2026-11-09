@@ -1,0 +1,50 @@
+496:   // ── Send notification ───────────────────────────────────────────────────────
+497:   const handleSendNotification = async () => {
+498:     if (!notifyContent.trim()) return
+499:     setNotifyLoading(true); setNotifyResult(null)
+500:     // For survey respondents we need their auth user_id. Only works if they have an auth account.
+501:     const targetId = isRegistered ? userId : null
+502:     if (!targetId) {
+503:       setNotifyResult({ ok: false, msg: 'This user does not have a login account yet. Generate a password first.' })
+504:       setNotifyLoading(false)
+505:       return
+506:     }
+507:     try {
+508:       const res = await fetch('/api/admin/notifications', {
+509:         method: 'POST',
+510:         headers: { 'Content-Type': 'application/json' },
+511:         body: JSON.stringify({ userId: targetId, content: notifyContent.trim(), severity: notifySeverity }),
+512:       })
+513:       const body = await res.json()
+514:       if (!res.ok) throw new Error(body.error || 'Failed')
+515:       setNotifyResult({ ok: true, msg: 'Notification sent — the user will see it next time they open the app.' })
+516:       setNotifyContent('')
+517:     } catch (err) {
+518:       setNotifyResult({ ok: false, msg: err instanceof Error ? err.message : 'Failed to send' })
+519:     } finally {
+520:       setNotifyLoading(false) }
+521:   }
+522: 
+523:   const displayName = formatDisplayName(
+524:     data?.profile?.first_name,
+525:     data?.profile?.last_name,
+526:     data?.profile?.email ?? decodeURIComponent(userId ?? '')
+527:   )
+528: 
+529:   const visibleLogs = (data?.logs || []).filter(l => showHidden || !l.hidden_by_admin) ?? []
+530:   const hiddenCount = (data?.logs || []).filter(l => l.hidden_by_admin).length ?? 0
+531: 
+532:   // ── Render ──────────────────────────────────────────────────────────────────
+533:   return (
+534:     <>
+535:     <div className="space-y-6 print:hidden">
+536: 
+537:       {/* Header */}
+538:       <div className="flex items-center justify-between gap-3 flex-wrap">
+539:         <div className="flex items-center gap-3">
+540:           <button onClick={() => router.back()} aria-label="Go back"
+541:             className="p-2 hover:bg-muted rounded-lg transition-colors">
+542:             <ArrowLeft className="w-5 h-5 text-foreground" />
+543:           </button>
+544:           <div>
+545:             <h1 className="text-3xl font-bold text-foreground">User Detail</h1>
