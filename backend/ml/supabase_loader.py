@@ -9,17 +9,16 @@ import os
 import requests
 from typing import List, Dict, Tuple
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://vpfzjysugqrnshfzsaex.supabase.co")
-SUPABASE_KEY = os.environ.get(
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZnpqeXN1Z3FybnNoZnpzYWV4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzk5MDQ2NCwiZXhwIjoyMDkzNTY2NDY0fQ.qdi36Xq_5_itsNWw3uMEQwMNbaeElaR9qvO-bsif3qA"
-)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
-HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-}
+def get_headers():
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
 
 
 def fetch_training_data() -> Tuple[List[Dict], List[int], List[float]]:
@@ -27,8 +26,14 @@ def fetch_training_data() -> Tuple[List[Dict], List[int], List[float]]:
     Pull all daily_logs rows from Supabase and convert them into
     (daily_logs, risk_levels, risk_percentages) for model training.
     """
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    headers = get_headers()
+    if not supabase_url or not headers.get("apikey"):
+        print("[ML] Supabase credentials missing from environment.")
+        return [], [], []
+
     try:
-        url = f"{SUPABASE_URL}/rest/v1/daily_logs"
+        url = f"{supabase_url}/rest/v1/daily_logs"
         params = {
             "select": "screen_time,breaks_taken,eye_strain,headaches,"
                       "blurry_vision,dry_eyes,brightness,sleep_hours,"
@@ -36,7 +41,7 @@ def fetch_training_data() -> Tuple[List[Dict], List[int], List[float]]:
                       "blurry_vision_frequency,dry_eyes_frequency",
             "limit": "10000"
         }
-        resp = requests.get(url, headers=HEADERS, params=params, timeout=15)
+        resp = requests.get(url, headers=headers, params=params, timeout=15)
 
         if resp.status_code != 200:
             print(f"[ML] Supabase fetch failed: {resp.status_code} {resp.text[:100]}")
@@ -97,11 +102,16 @@ def fetch_training_data() -> Tuple[List[Dict], List[int], List[float]]:
 
 def count_training_rows() -> int:
     """Return the number of rows available in daily_logs for training."""
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    headers = get_headers()
+    if not supabase_url or not headers.get("apikey"):
+        return 0
+
     try:
-        url = f"{SUPABASE_URL}/rest/v1/daily_logs"
+        url = f"{supabase_url}/rest/v1/daily_logs"
         params = {"select": "id", "limit": "1"}
-        headers = {**HEADERS, "Prefer": "count=exact"}
-        resp = requests.get(url, headers=headers, params=params, timeout=10)
+        req_headers = {**headers, "Prefer": "count=exact"}
+        resp = requests.get(url, headers=req_headers, params=params, timeout=10)
         count = resp.headers.get("content-range", "0/0").split("/")[-1]
         return int(count) if count.isdigit() else 0
     except Exception as e:

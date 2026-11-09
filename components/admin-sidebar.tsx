@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import {
   LayoutDashboard, Users, Database, BarChart3,
-  Activity, Settings, ChevronRight, LogOut, TrendingUp, Eye,
+  Activity, Settings, ChevronRight, LogOut, TrendingUp, Eye, Brain,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { LogoutDialog } from './logout-dialog';
@@ -20,6 +20,7 @@ const menuItems = [
   { label: 'Users',                href: '/admin/users',       icon: Users           },
   { label: 'Data Management',      href: '/admin/data',        icon: Database        },
   { label: 'Analytics',            href: '/admin/analytics',   icon: BarChart3       },
+  { label: 'Model Evaluation',     href: '/admin/evaluation',  icon: Brain           },
   { label: 'Improvement Tracking', href: '/admin/improvement', icon: TrendingUp      },
   { label: 'Audit History',        href: '/admin/audit',       icon: Eye             },
   { label: 'Activity Logs',        href: '/admin/logs',        icon: Activity        },

@@ -14,6 +14,7 @@ import { isAdmin } from '@/lib/admin-guard';
 import { NotificationBell } from './notification-bell';
 import { LogoutDialog } from './logout-dialog';
 import { AiChat } from './ai-chat';
+import { EyeBreakReminder } from './eye-break-reminder';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard',       icon: LayoutDashboard },
@@ -277,6 +278,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* ── AI Chat FAB — opens a popup on the same page ─────────────── */}
       <AiChat mode="bubble" />
+      <EyeBreakReminder />
 
       {/* ── Logout dialog ─────────────────────────────────────────────── */}
       <LogoutDialog

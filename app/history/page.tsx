@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Printer, Download, FileText } from 'lucide-react'
 import { MainLayout } from '@/components/main-layout'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -280,9 +280,36 @@ export default function HistoryPage() {
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
 
         {/* Page header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Log History</h1>
-          <p className="text-muted-foreground mt-1">All your daily logs and survey responses in one place.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Log History</h1>
+            <p className="text-muted-foreground mt-1">All your daily logs, symptom patterns, and CVSQ scores.</p>
+          </div>
+          {hasAnything && (
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <Printer className="w-4 h-4" />
+              Export Clinical / Optometry Report
+            </button>
+          )}
+        </div>
+
+        {/* Clinical Print Header (Visible only when printed or exported as PDF) */}
+        <div className="hidden print:block border-b-2 border-primary pb-4 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-black">EyeGuard Digital Eye Strain Patient Report</h1>
+              <p className="text-xs text-gray-600 mt-1">
+                Automated Clinical Decision Support & Longitudinal Ergonomic Profile
+              </p>
+            </div>
+            <div className="text-right text-xs text-gray-600">
+              <p>Report Date: {new Date().toLocaleDateString()}</p>
+              <p>Total Records Analyzed: {logs.length}</p>
+            </div>
+          </div>
         </div>
 
         {loading && <p aria-busy="true" className="text-muted-foreground">Loading…</p>}
