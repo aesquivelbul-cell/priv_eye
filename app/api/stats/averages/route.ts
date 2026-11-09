@@ -20,8 +20,6 @@ const BRIGHTNESS_MAP: Record<string, number> = {
 
 export async function GET() {
   try {
-    // Require an authenticated session — this endpoint uses the admin client
-    // so we need at least a valid user to prevent public data exposure.
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -34,48 +32,69 @@ export async function GET() {
     const [logsRes, surveysRes] = await Promise.all([
       adminClient
         .from('daily_logs')
-        .select('screen_time, sleep_hours, brightness'),
+        .select('user_id, email, screen_time, sleep_hours, brightness, source'),
       adminClient
         .from('survey_responses')
-        .select('eg_academic_screen_time, eg_non_academic_screen_time, eg_screen_brightness, eg_sleep_hours'),
+        .select('email, eg_academic_screen_time, eg_non_academic_screen_time, eg_screen_brightness, eg_sleep_hours'),
     ])
 
     const logs    = logsRes.data    ?? []
     const surveys = (surveysRes.data ?? []) as Record<string, unknown>[]
 
-    // ── Screen time ──────────────────────────────────────────────────────────
-    const dailyScreenTimes = logs.map((l: any) => Number(l.screen_time) || 0)
-    const surveyScreenTimes = surveys.map(s => {
-      const a = ACAD_MAP[s.eg_academic_screen_time as string]     ?? 0
-      const b = NON_ACAD_MAP[s.eg_non_academic_screen_time as string] ?? 0
-      return a + b
-    })
-    const allScreenTimes = [...dailyScreenTimes, ...surveyScreenTimes].filter(v => v > 0)
+    // Detect if survey data is already migrated into daily_logs
+    const isSurveyMigrated = logs.some((l: any) => !l.user_id || l.source === 'survey')
 
-    // ── Sleep hours ──────────────────────────────────────────────────────────
-    const SLEEP_MAP: Record<string, number> = {
-      'Less than 5 hours': 4.5, '5–6 hours': 5.5, '7–8 hours': 7.5, 'More than 8 hours': 8.5,
+    let allScreenTimes: number[] = []
+    let allSleepHours: number[] = []
+    let allBrightness: number[] = []
+    let totalRespondents = 0
+
+    if (isSurveyMigrated) {
+      // All survey entries are already stored in daily_logs — do NOT double-count from survey_responses!
+      allScreenTimes = logs.map((l: any) => Number(l.screen_time) || 0).filter(v => v > 0)
+      allSleepHours  = logs.map((l: any) => Number(l.sleep_hours) || 0).filter(v => v > 0)
+      allBrightness  = logs.map((l: any) => Number(l.brightness) || 0).filter(v => v > 0)
+
+      const registeredUsers = new Set(logs.filter((l: any) => l.user_id).map((l: any) => l.user_id))
+      const migratedSurveyLogsCount = logs.filter((l: any) => !l.user_id || l.source === 'survey').length
+      totalRespondents = registeredUsers.size + migratedSurveyLogsCount
+    } else {
+      const dailyScreenTimes = logs.map((l: any) => Number(l.screen_time) || 0)
+      const surveyScreenTimes = surveys.map(s => {
+        const a = ACAD_MAP[s.eg_academic_screen_time as string]     ?? 0
+        const b = NON_ACAD_MAP[s.eg_non_academic_screen_time as string] ?? 0
+        return a + b
+      })
+      allScreenTimes = [...dailyScreenTimes, ...surveyScreenTimes].filter(v => v > 0)
+
+      const SLEEP_MAP: Record<string, number> = {
+        'Less than 5 hours': 4.5, '5–6 hours': 5.5, '7–8 hours': 7.5, 'More than 8 hours': 8.5,
+      }
+      const dailySleepHours = logs.map((l: any) => Number(l.sleep_hours) || 0)
+      const surveySleepHours = surveys.map(s => {
+        const raw = s.eg_sleep_hours as string | null
+        return SLEEP_MAP[raw ?? ''] ?? (Number(raw) || 0)
+      })
+      allSleepHours = [...dailySleepHours, ...surveySleepHours].filter(v => v > 0)
+
+      const dailyBrightness = logs.map((l: any) => Number(l.brightness) || 0)
+      const surveyBrightness = surveys.map(s => {
+        return BRIGHTNESS_MAP[s.eg_screen_brightness as string] ?? 50
+      })
+      allBrightness = [...dailyBrightness, ...surveyBrightness].filter(v => v > 0)
+
+      const dailyEmails = new Set(logs.map((l: any) => l.email).filter(Boolean))
+      let surveyUnique = 0
+      for (const s of surveys) {
+        if (s.email && !dailyEmails.has(s.email as string)) surveyUnique++
+      }
+      const registeredUsers = new Set(logs.filter((l: any) => l.user_id).map((l: any) => l.user_id))
+      totalRespondents = registeredUsers.size + surveyUnique
     }
-    const dailySleepHours = logs.map((l: any) => Number(l.sleep_hours) || 0)
-    const surveySleepHours = surveys.map(s => {
-      const raw = s.eg_sleep_hours as string | null
-      return SLEEP_MAP[raw ?? ''] ?? (Number(raw) || 0)
-    })
-    const allSleepHours = [...dailySleepHours, ...surveySleepHours].filter(v => v > 0)
 
-    // ── Brightness ───────────────────────────────────────────────────────────
-    const dailyBrightness = logs.map((l: any) => Number(l.brightness) || 0)
-    const surveyBrightness = surveys.map(s => {
-      return BRIGHTNESS_MAP[s.eg_screen_brightness as string] ?? 50
-    })
-    const allBrightness = [...dailyBrightness, ...surveyBrightness].filter(v => v > 0)
-
-    // ── Averages ─────────────────────────────────────────────────────────────
     const avg = (arr: number[]) => arr.length > 0
       ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1))
       : 0
-
-    const totalRespondents = logs.length + surveys.length
 
     return NextResponse.json({
       avgScreenTime:   avg(allScreenTimes),

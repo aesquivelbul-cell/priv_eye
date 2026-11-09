@@ -11,7 +11,7 @@ interface AdminHeaderProps {
 
 const pageTitles: Record<string, string> = {
   '/admin/dashboard':   'Dashboard',
-  '/admin/users':       'Respondents',
+  '/admin/users':       'Users',
   '/admin/data':        'Data Management',
   '/admin/analytics':   'Analytics',
   '/admin/improvement': 'Improvement Tracking',

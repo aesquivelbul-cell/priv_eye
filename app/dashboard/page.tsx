@@ -284,7 +284,7 @@ export default function DashboardPage() {
                     <h3 className="text-sm font-semibold text-foreground">How You Compare</h3>
                   </div>
                   <p className="text-xs text-muted-foreground mb-5 ml-8">
-                    vs. average of {groupAvg.totalRespondents} respondents
+                    vs. average of {groupAvg.totalRespondents} users
                   </p>
                   <div className="space-y-4">
                     {[

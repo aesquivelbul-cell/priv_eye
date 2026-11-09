@@ -135,9 +135,9 @@ export default function AdminDashboardPage() {
         </div>
       ) : stats ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={<Users className="w-5 h-5" />}         label="Total Respondents" value={stats.totalRespondents}  sub="All-time submissions"  iconBg="bg-primary/15 text-primary" />
+          <StatCard icon={<Users className="w-5 h-5" />}         label="Total Users" value={stats.totalRespondents}  sub="All-time submissions"  iconBg="bg-primary/15 text-primary" />
           <StatCard icon={<Monitor className="w-5 h-5" />}       label="Avg Screen Time"   value={`${stats.averageScreenTime}h`} sub="Per daily log"    iconBg="bg-primary/15 text-primary" />
-          <StatCard icon={<AlertTriangle className="w-5 h-5" />} label="High / Critical"   value={`${(stats.riskDistribution.High + stats.riskDistribution.Critical).toFixed(1)}%`} sub="Of all respondents" iconBg="bg-red-500/15 text-red-400" />
+          <StatCard icon={<AlertTriangle className="w-5 h-5" />} label="High / Critical"   value={`${(stats.riskDistribution.High + stats.riskDistribution.Critical).toFixed(1)}%`} sub="Of all users" iconBg="bg-red-500/15 text-red-400" />
           <StatCard icon={<CheckCircle className="w-5 h-5" />}   label="Low Risk"          value={`${Number(stats.riskDistribution.Low).toFixed(1)}%`} sub="Healthy range"  iconBg="bg-green-500/15 text-green-400" />
         </div>
       ) : (

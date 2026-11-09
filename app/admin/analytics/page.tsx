@@ -275,7 +275,7 @@ export default function AdminAnalyticsPage() {
 
       <div>
         <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">System-wide eye health trends across all respondents</p>
+        <p className="text-sm text-muted-foreground mt-0.5">System-wide eye health trends across all users</p>
       </div>
 
       {/* ── HIGH RISK ALERT — top, always visible ── */}
@@ -297,15 +297,15 @@ export default function AdminAnalyticsPage() {
                 <div className="flex flex-wrap gap-6">
                   <div>
                     <p className="text-3xl font-bold text-red-400">{demographics.highRiskCount}</p>
-                    <p className="text-xs text-muted-foreground">High / Critical respondents</p>
+                    <p className="text-xs text-muted-foreground">High / Critical users</p>
                   </div>
                   <div>
                     <p className="text-3xl font-bold text-red-400">{pct}%</p>
-                    <p className="text-xs text-muted-foreground">of total respondents</p>
+                    <p className="text-xs text-muted-foreground">of total users</p>
                   </div>
                 </div>
                 <p className="text-xs text-red-400/80 bg-red-500/10 rounded-lg px-4 py-2 inline-block">
-                  These respondents may need immediate attention.
+                  These users may need immediate attention.
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-red-400 flex-shrink-0">
@@ -319,7 +319,7 @@ export default function AdminAnalyticsPage() {
               <div className="border-t border-red-500/15 p-5 space-y-4">
                 {demographics.highRiskUsers.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No respondents with High or Critical risk found.
+                    No users with High or Critical risk found.
                   </p>
                 ) : (
                   <>
@@ -329,14 +329,14 @@ export default function AdminAnalyticsPage() {
                           {demographics.highRiskUsers.length} respondent{demographics.highRiskUsers.length !== 1 ? 's' : ''} with High or Critical risk
                         </p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          View details or send notifications to respondents.
+                          View details or send notifications to users.
                         </p>
                       </div>
                       <div className="relative max-w-xs w-full">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                         <input
                           type="search"
-                          placeholder="Search high-risk respondents…"
+                          placeholder="Search high-risk users…"
                           value={alertSearch}
                           onChange={(e) => setAlertSearch(e.target.value)}
                           className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -409,7 +409,7 @@ export default function AdminAnalyticsPage() {
 
                     {filteredHighRiskUsers.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        No respondents found matching &ldquo;{alertSearch}&rdquo;
+                        No users found matching &ldquo;{alertSearch}&rdquo;
                       </p>
                     )}
 
@@ -433,11 +433,11 @@ export default function AdminAnalyticsPage() {
         <div className="border border-[#f97316]/10 bg-[#f97316]/[0.03] rounded-xl p-5 flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg bg-[#f97316]/15 flex items-center justify-center flex-shrink-0"><BarChart3 className="w-5 h-5 text-[#f97316]" /></div>
           <div>
-            <p className="text-xs text-muted-foreground">Total Respondents</p>
+            <p className="text-xs text-muted-foreground">Total Users</p>
             <p className="text-2xl font-bold text-foreground">{stats.totalRespondents}</p>
             {(stats.dailyRespondents != null || stats.surveyRespondents != null) && (
               <p className="text-[10px] text-muted-foreground mt-0.5">
-                {stats.dailyRespondents ?? 0} live · {stats.surveyRespondents ?? 0} imported
+                All active & registered users
               </p>
             )}
           </div>
@@ -595,7 +595,7 @@ export default function AdminAnalyticsPage() {
                   <BarChart data={demographics.fieldOfStudy} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
                     <YAxis type="category" dataKey="name" width={160} tick={{ fontSize: 12 }} tickLine={false} />
-                    <Tooltip formatter={(v: number) => [v, 'Respondents']} cursor={{ fill: 'rgba(249,115,22,0.08)' }} contentStyle={{ background: 'var(--card)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', color: 'var(--foreground)', fontSize: '12px' }} />
+                    <Tooltip formatter={(v: number) => [v, 'Users']} cursor={{ fill: 'rgba(249,115,22,0.08)' }} contentStyle={{ background: 'var(--card)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', color: 'var(--foreground)', fontSize: '12px' }} />
                     <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={28}>
                       {demographics.fieldOfStudy.map((_, i) => <Cell key={i} fill={BAR_COLOR} fillOpacity={1 - i * 0.06} />)}
                     </Bar>
@@ -614,7 +614,7 @@ export default function AdminAnalyticsPage() {
                   <BarChart data={demographics.yearLevel} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
                     <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} tickLine={false} />
-                    <Tooltip formatter={(v: number) => [v, 'Respondents']} cursor={{ fill: 'rgba(249,115,22,0.08)' }} contentStyle={{ background: 'var(--card)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', color: 'var(--foreground)', fontSize: '12px' }} />
+                    <Tooltip formatter={(v: number) => [v, 'Users']} cursor={{ fill: 'rgba(249,115,22,0.08)' }} contentStyle={{ background: 'var(--card)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', color: 'var(--foreground)', fontSize: '12px' }} />
                     <Bar dataKey="count" fill={BAR_COLOR} radius={[0, 4, 4, 0]} maxBarSize={28} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -639,7 +639,7 @@ export default function AdminAnalyticsPage() {
                       <div key={key} className={`rounded-xl p-5 border ${bg}`}>
                         <p className={`text-3xl font-bold ${text}`}>{count}</p>
                         <p className="text-sm font-medium text-foreground mt-0.5">{label}</p>
-                        <p className="text-xs text-muted-foreground">{pct}% of respondents</p>
+                        <p className="text-xs text-muted-foreground">{pct}% of users</p>
                       </div>
                     )
                   })}

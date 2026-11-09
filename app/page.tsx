@@ -209,7 +209,7 @@ export default function Home() {
       <section id="how" className="scroll-mt-20">
         <div className="max-w-4xl mx-auto grid grid-cols-3 divide-x divide-orange-500/15 px-6 py-10">
           {[
-            { label: 'Respondents Tracked',    value: stats ? fmt(stats.respondents)           : null, color: 'text-[#f97316]'  },
+            { label: 'Users Tracked',    value: stats ? fmt(stats.respondents)           : null, color: 'text-[#f97316]'  },
             { label: 'Daily Logs Recorded',    value: stats ? fmt(stats.logsRecorded)           : null, color: 'text-[#fb923c]'  },
             { label: 'Predictions Generated',  value: stats ? fmt(stats.predictionsGenerated)   : null, color: 'text-[#fdba74]'  },
           ].map(({ label, value, color }) => (
