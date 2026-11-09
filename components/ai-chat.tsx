@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, X, MessageCircle, Minimize2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, X, MessageCircle, Minimize2, RotateCcw } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -20,6 +20,8 @@ const SUGGESTED_QUESTIONS = [
   'How does sleep affect eye health?',
 ];
 
+const STORAGE_KEY = 'eyeguard_user_chat_session';
+
 export function AiChat({ mode, initialMessage }: AiChatProps) {
   const defaultMsg: Message = {
     role: 'assistant',
@@ -28,12 +30,47 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       "Hi! I'm EyeGuard AI 👋 I can answer your eye health questions and give personalised advice based on your data. What would you like to know?",
   };
 
-  const [messages, setMessages] = useState<Message[]>([defaultMsg]);
+  // Restore conversation from sessionStorage
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window === 'undefined') return [defaultMsg];
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null');
+      return saved?.messages?.length ? saved.messages : [defaultMsg];
+    } catch {
+      return [defaultMsg];
+    }
+  });
+
+  const [isOpen, setIsOpen] = useState<boolean>(() => {
+    if (mode !== 'bubble' || typeof window === 'undefined') return false;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null');
+      return Boolean(saved?.isOpen);
+    } catch {
+      return false;
+    }
+  });
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Sync state to sessionStorage whenever messages or isOpen changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          messages,
+          isOpen: mode === 'bubble' ? isOpen : false,
+        })
+      );
+    } catch {
+      /* storage quota exceeded - ignore */
+    }
+  }, [messages, isOpen, mode]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -44,6 +81,23 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen, mode]);
+
+  const clearChat = useCallback(() => {
+    setMessages([defaultMsg]);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            messages: [defaultMsg],
+            isOpen: mode === 'bubble' ? isOpen : false,
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [defaultMsg, isOpen, mode]);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -107,8 +161,8 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
                     .trim()
                     .split('\n')
                     .filter(line => line.trim() !== '')
-                    .map((line, i, arr) => (
-                      <span key={i} className={`block ${i < arr.length - 1 ? 'mb-1' : ''}`}>
+                    .map((line, idx, arr) => (
+                      <span key={idx} className={`block ${idx < arr.length - 1 ? 'mb-1' : ''}`}>
                         {line}
                       </span>
                     ))
@@ -189,9 +243,19 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
             <p className="text-sm font-semibold text-foreground">EyeGuard AI</p>
             <p className="text-xs text-[#fff7ed]/40">Eye health assistant</p>
           </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-xs text-[#fff7ed]/40">Online</span>
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              onClick={clearChat}
+              title="Reset conversation"
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md border border-border hover:bg-muted"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-400" />
+              <span className="text-xs text-[#fff7ed]/40">Online</span>
+            </div>
           </div>
         </div>
         {ChatBody}
@@ -221,13 +285,23 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
                 <span className="text-[10px] text-[#fff7ed]/40">Online · Eye health assistant</span>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              aria-label="Close chat"
-              className="ml-auto p-1.5 hover:bg-[#fff7ed]/5 rounded-lg transition-colors text-[#fff7ed]/40 hover:text-[#fff7ed]/70"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={clearChat}
+                title="Reset conversation"
+                className="p-1.5 hover:bg-[#fff7ed]/5 rounded-lg transition-colors text-[#fff7ed]/40 hover:text-[#fff7ed]/70"
+                aria-label="Reset chat"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                aria-label="Close chat"
+                className="p-1.5 hover:bg-[#fff7ed]/5 rounded-lg transition-colors text-[#fff7ed]/40 hover:text-[#fff7ed]/70"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {ChatBody}
         </div>

@@ -277,7 +277,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </footer>
 
       {/* ── AI Chat FAB — opens a popup on the same page ─────────────── */}
-      <AiChat mode="bubble" />
+      {pathname !== '/ai-assistant' && <AiChat mode="bubble" />}
       <EyeBreakReminder />
 
       {/* ── Logout dialog ─────────────────────────────────────────────── */}

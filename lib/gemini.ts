@@ -8,10 +8,8 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Most-available first — ordered by availability and cost-efficiency.
 export const GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-flash-latest',
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
 ];
 
 export interface GeminiMessage {

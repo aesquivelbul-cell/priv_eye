@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-// Gemini models to try in order (newest first)
-const GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest'];
-const GEMINI_BASE   = 'https://generativelanguage.googleapis.com/v1beta/models';
+// Ultra-fast Gemini models verified operational in this environment
+const GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
+];
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'AI service not configured. Please set GEMINI_API_KEY.' }, { status: 500 });
     }
 
-    // ── Build context from Supabase (graceful fallback if unauthenticated / guest) ──
+    // ── Build context from Supabase (lean & fast queries) ─────────────────────
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -25,36 +29,26 @@ export async function POST(request: NextRequest) {
 
     if (user) {
       try {
-        const [profileResult, logsResult, predictionsResult, progressResult, settingsResult] = await Promise.all([
+        const [profileResult, logsResult, predictionsResult] = await Promise.all([
           supabase.from('user_profiles')
-            .select('first_name, last_name, age, gender, year_level, field_of_study, baseline_risk_level, medical_history, preferred_contact_method, opt_in_communications')
+            .select('first_name, last_name, year_level, field_of_study')
             .eq('user_id', user.id)
             .maybeSingle(),
           supabase.from('daily_logs')
-            .select('date, academic_screen_time, non_academic_screen_time, screen_time, primary_device, breaks_taken, brightness, sleep_hours, sym_dry_eyes, sym_eye_itchiness, sym_blurred_vision, sym_headaches, sym_eye_irritation, sym_light_sensitivity, sym_difficulty_focusing, sym_neck_shoulder_pain, sym_mental_fatigue, sym_difficulty_concentrating, overall_eye_strain, risk_level, notes')
+            .select('date, screen_time, sleep_hours, brightness, breaks_taken, sym_headaches, sym_blurred_vision, sym_dry_eyes, risk_level')
             .eq('user_id', user.id)
             .order('date', { ascending: false })
-            .limit(90),
+            .limit(14),
           supabase.from('predictions')
-            .select('risk_level, risk_percentage, fatigue_score, confidence, recommendations, created_at')
+            .select('risk_level, risk_percentage, fatigue_score')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
-            .limit(10),
-          supabase.from('user_progress')
-            .select('total_logs_count, consecutive_days, last_log_date, avg_screen_time_week, avg_sleep_hours_week, avg_risk_score_week, daily_screen_time_goal, daily_sleep_hours_goal')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-          supabase.from('user_settings')
-            .select('enable_email_notifications, enable_daily_reminders, reminder_time, theme, language, share_data_for_research, allow_data_export')
-            .eq('user_id', user.id)
-            .maybeSingle(),
+            .limit(1),
         ]);
 
         const profile = profileResult.data;
         const logs = logsResult.data ?? [];
-        const predictions = predictionsResult.data ?? [];
-        const progress = progressResult.data;
-        const settings = settingsResult.data;
+        const latestPrediction = predictionsResult.data?.[0] ?? null;
 
         const number = (value: unknown) => typeof value === 'number' ? value : Number(value ?? 0);
         const average = (field: string) => logs.length
@@ -62,29 +56,18 @@ export async function POST(request: NextRequest) {
           : '0.0';
         const countPresent = (field: string) => logs.filter((log: any) => log[field] && log[field] !== 'Never').length;
 
-        const logLines = logs.slice(0, 30).map((log: any) => [
-          log.date,
-          `screen=${log.screen_time ?? 'n/a'}h`,
-          `sleep=${log.sleep_hours ?? 'n/a'}h`,
-          `brightness=${log.brightness ?? 'n/a'}%`,
-          `breaks=${log.breaks_taken ?? 'n/a'}`,
-          `risk=${log.risk_level ?? 'n/a'}`
-        ].join(', '));
-
-        const latestPrediction = predictions[0] ?? null;
-
         userContext = `
 USER PROFILE:
 - Name: ${profile?.first_name || ''} ${profile?.last_name || ''}
 - Field: ${profile?.field_of_study || 'N/A'} (Year ${profile?.year_level || 'N/A'})
 
-HEALTH SUMMARY (${logs.length} logs):
-- Average screen time: ${average('screen_time')} hours/day
-- Average sleep: ${average('sleep_hours')} hours/night
-- Headaches reported: ${countPresent('sym_headaches')}/${logs.length} logs
-- Blurry vision reported: ${countPresent('sym_blurred_vision')}/${logs.length} logs
-- Dry eyes reported: ${countPresent('sym_dry_eyes')}/${logs.length} logs
-- Latest prediction: ${latestPrediction ? `${latestPrediction.risk_percentage ?? 'n/a'}% risk, ${latestPrediction.fatigue_score ?? 'n/a'}/10 fatigue` : 'None yet'}
+RECENT HEALTH METRICS (last ${logs.length} logs):
+- Avg screen time: ${average('screen_time')} h/day
+- Avg sleep: ${average('sleep_hours')} h/night
+- Headaches reported: ${countPresent('sym_headaches')}/${logs.length} days
+- Blurry vision reported: ${countPresent('sym_blurred_vision')}/${logs.length} days
+- Dry eyes reported: ${countPresent('sym_dry_eyes')}/${logs.length} days
+- Latest risk assessment: ${latestPrediction ? `${latestPrediction.risk_percentage ?? 'n/a'}% (${latestPrediction.risk_level ?? 'N/A'})` : 'None yet'}
 `;
       } catch (err) {
         console.warn('Could not load user details for chat context:', err);
@@ -92,23 +75,22 @@ HEALTH SUMMARY (${logs.length} logs):
     }
 
     // ── System instruction ─────────────────────────────────────────────
-    const systemInstruction = `You are EyeGuard AI, a helpful, knowledgeable, and friendly eye health and ergonomics coach built into the EyeGuard app.
+    const systemInstruction = `You are EyeGuard AI, a helpful, friendly, and knowledgeable eye health coach for college students.
 
-${userContext ? `User Data Available:\n${userContext}` : 'The user is chatting in guest/general mode or has no logged data yet.'}
+${userContext ? `Student Health Context:
+${userContext}` : 'The student is chatting in guest mode.'}
 
 Guidelines:
-- Answer questions directly, clearly, and concisely.
-- For general questions (e.g. "hello", "what is 20-20-20 rule?", "how to reduce screen fatigue"), explain in friendly, supportive terms.
-- Ground advice in standard ergonomic practices (AOA 20-20-20 rule, display brightness matching ambient light, frequent blinking, proper viewing distance of 20-28 inches).
-- Keep answers concise (1 to 3 short paragraphs max).
-- If the user asks about their own history or risk, summarize their logged numbers if available.
-- Always include a gentle reminder that this guidance is informational and educational, not a medical diagnosis.`;
+- Keep responses concise (1 to 2 short paragraphs max).
+- Ground advice in standard ergonomic practices: the 20-20-20 rule, viewing distance of 20-28 inches, proper room lighting, conscious blinking.
+- If asked about their risk or history, reference their health context numbers above.
+- Always be supportive, practical, and remind students that advice is educational, not medical diagnosis.`;
 
     // ── Build Gemini conversation turns ───────────────────────────────
     const contents: { role: string; parts: { text: string }[] }[] = [];
 
     if (history && Array.isArray(history)) {
-      for (const msg of history.slice(1).slice(-10)) {
+      for (const msg of history.slice(1).slice(-6)) {
         contents.push({
           role: msg.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: String(msg.content) }],
@@ -131,9 +113,10 @@ Guidelines:
             contents,
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 600,
+              maxOutputTokens: 400,
             },
           }),
+          signal: AbortSignal.timeout(5000), // Fail fast if a model stalls
         });
 
         if (response.status === 404) {
