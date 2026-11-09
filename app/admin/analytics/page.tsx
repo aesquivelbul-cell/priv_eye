@@ -524,7 +524,7 @@ export default function AdminAnalyticsPage() {
               })}
             </div>
             <p className="text-xs text-muted-foreground mt-4">
-              Based on {stats.surveyRespondents ?? total} imported survey respondents. Score ≥7 = Positive CVS, 5–6 = High Probability, 3–4 = Low Probability, 1–2 = Not a CVS Case, 0 = Normal.
+              Based on {stats.surveyRespondents ?? total} users. Score ≥7 = Positive CVS, 5–6 = High Probability, 3–4 = Low Probability, 1–2 = Not a CVS Case, 0 = Normal.
             </p>
           </div>
         )

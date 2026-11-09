@@ -165,8 +165,8 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Respondents</h1>
-        <p className="text-muted-foreground mt-1">All users and survey respondents — rows without a user account are imported survey data</p>
+        <h1 className="text-3xl font-bold text-foreground">Users</h1>
+        <p className="text-muted-foreground mt-1">All registered and active users in the system</p>
       </div>
 
       {/* Search + filters */}

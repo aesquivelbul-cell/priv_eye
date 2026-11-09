@@ -310,7 +310,7 @@ export default function ImprovementPage() {
               <p className="text-sm text-muted-foreground">Total Tracked</p>
               <p className="text-3xl font-bold text-foreground mt-1">{s.total}</p>
               <p className="text-xs text-muted-foreground mt-1">registered users with ≥2 live logs</p>
-              <p className="text-xs text-muted-foreground">Survey respondents need a 2nd submission to appear</p>
+              <p className="text-xs text-muted-foreground">Users need at least 2 submissions to evaluate progress</p>
             </div>
             <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 p-5">
               <p className="text-sm text-green-700 dark:text-green-400">Improved</p>
