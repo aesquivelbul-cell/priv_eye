@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
-  LayoutDashboard, BarChart3, AlertCircle, CalendarCheck,
+  LayoutDashboard, BarChart3, AlertCircle, CalendarCheck, ClipboardList,
   Settings, LogOut, Sun, Moon, Menu, X, ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { label: 'Analytics', href: '/analytics',       icon: BarChart3 },
   { label: 'Risk',      href: '/risk-prediction', icon: AlertCircle },
   { label: 'Daily Log', href: '/daily-log',       icon: CalendarCheck },
+  { label: 'History',   href: '/history',         icon: ClipboardList },
 ];
 
 interface MainLayoutProps {
