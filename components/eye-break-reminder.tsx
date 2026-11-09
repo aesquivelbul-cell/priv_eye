@@ -115,7 +115,7 @@ export function EyeBreakReminder() {
     <>
       {/* Break overlay modal when 20 seconds active */}
       {isBreakTime && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in print:hidden">
           <div className="max-w-md w-full bg-card border-2 border-primary rounded-2xl p-6 text-center shadow-2xl space-y-4">
             <div className="mx-auto w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary animate-pulse">
               <Eye className="w-8 h-8" />
@@ -138,7 +138,7 @@ export function EyeBreakReminder() {
       )}
 
       {/* Persistent Widget in Bottom Right corner */}
-      <div className="fixed bottom-28 right-6 z-40 bg-card border border-border shadow-lg rounded-xl p-3 flex items-center gap-3 text-xs">
+      <div className="fixed bottom-28 right-6 z-40 bg-card border border-border shadow-lg rounded-xl p-3 flex items-center gap-3 text-xs print:hidden">
         <button
           onClick={toggleReminder}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${

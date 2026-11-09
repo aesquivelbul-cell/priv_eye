@@ -103,5 +103,17 @@ export async function GET() {
     surveyResponses = (surveyRows as unknown as Record<string, unknown>[]) ?? []
   }
 
-  return NextResponse.json({ logs: computedLogs, surveyResponses })
+    // Fetch profile for patient report
+  const { data: profile } = await adminClient
+    .from('user_profiles')
+    .select('first_name, last_name, age, gender, year_level, field_of_study')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  return NextResponse.json({
+    logs: computedLogs,
+    surveyResponses,
+    profile: profile ?? null,
+    userEmail: user.email ?? null,
+  })
 }

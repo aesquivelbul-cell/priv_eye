@@ -99,7 +99,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen bg-background flex flex-col">
 
       {/* ── Top nav ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-[#f97316]/15 bg-[#1a0f07]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-[#f97316]/15 bg-[#1a0f07]/80 backdrop-blur-md print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[4.5rem] grid grid-cols-[auto_1fr_auto] items-center gap-4">
 
           {/* Left — Logo (matches landing page style) */}
@@ -257,7 +257,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-border bg-background/60 backdrop-blur-sm">
+      <footer className="border-t border-border bg-background/60 backdrop-blur-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-10 flex items-center justify-between gap-4">
           <span className="text-[11px] text-muted-foreground">
             © {new Date().getFullYear()} EyeGuard — Academic research project

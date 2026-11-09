@@ -435,7 +435,7 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       {/* Chat popup */}
       {isOpen && (
         <div
-          className="fixed bottom-20 right-5 z-50 w-[380px] max-w-[calc(100vw-2.5rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-[#140c06] border border-[#f97316]/25 rounded-2xl shadow-2xl shadow-black/80 flex flex-col overflow-hidden"
+          className="fixed bottom-20 right-5 z-50 w-[380px] print:hidden max-w-[calc(100vw-2.5rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-[#140c06] border border-[#f97316]/25 rounded-2xl shadow-2xl shadow-black/80 flex flex-col overflow-hidden"
           role="dialog"
           aria-label="EyeGuard AI chat"
         >
@@ -482,7 +482,7 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       <button
         onClick={() => setIsOpen(o => !o)}
         aria-label={isOpen ? 'Close AI chat' : 'Open AI chat'}
-        className="fixed bottom-5 right-5 z-50 flex items-center justify-center w-13 h-13 rounded-full bg-gradient-to-br from-[#f97316] to-[#fb923c] text-[#0f0a07] shadow-lg shadow-[#f97316]/30 hover:opacity-90 hover:-translate-y-0.5 active:scale-95 transition-all"
+        className="fixed bottom-5 right-5 z-50 flex items-center justify-center w-13 h-13 print:hidden rounded-full bg-gradient-to-br from-[#f97316] to-[#fb923c] text-[#0f0a07] shadow-lg shadow-[#f97316]/30 hover:opacity-90 hover:-translate-y-0.5 active:scale-95 transition-all"
         style={{ width: '52px', height: '52px' }}
       >
         {isOpen
