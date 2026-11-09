@@ -113,7 +113,20 @@ export async function GET(
     field_of_study: (profile as any)?.field_of_study ?? latestLog.field_of_study ?? null,
   }
 
-  return NextResponse.json({ profile, logs })
+  // Also fetch any survey responses for registered users who have logs
+  let surveyResponses: Record<string, unknown>[] = []
+  try {
+    const { data: sRows } = await adminClient
+      .from('survey_responses')
+      .select('*')
+      .eq('email', emailVal)
+      .order('response_timestamp', { ascending: false })
+    if (sRows && sRows.length > 0) {
+      surveyResponses = sRows as unknown as Record<string, unknown>[]
+    }
+  } catch { /* non-fatal */ }
+
+  return NextResponse.json({ profile, logs, surveyResponses })
 }
 
 export async function PATCH(
