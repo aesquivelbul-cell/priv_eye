@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import Link from 'next/link'
 import {
   BarChart3, TrendingUp, Eye, Moon, AlertTriangle,
-  ChevronDown, ChevronUp, Send, Bell, X, User, CheckCircle2,
+  ChevronDown, ChevronUp, Send, Bell, X, User, CheckCircle2, Search,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -84,7 +85,7 @@ function computeDemographics(users: UserRecord[]): DemographicsData {
     else genderCounts.Other++
     if (u.lastRiskLevel === 'High' || u.lastRiskLevel === 'Critical') {
       highRiskCount++
-      if (u.userId) highRiskUsers.push(u)
+      highRiskUsers.push(u)
     }
   }
 
@@ -119,6 +120,10 @@ function NotifyPanel({ user, onClose }: { user: UserRecord; onClose: () => void 
   const send = async () => {
     const text = message.trim()
     if (!text || sending) return
+    if (!user.userId) {
+      setError('Cannot send in-app notification: respondent has no registered account.')
+      return
+    }
     setSending(true); setError('')
     try {
       const res = await fetch('/api/admin/notifications', {
@@ -224,6 +229,18 @@ export default function AdminAnalyticsPage() {
   const [error,         setError]         = useState('')
   const [alertExpanded, setAlertExpanded] = useState(false)
   const [activeUser,    setActiveUser]    = useState<UserRecord | null>(null)
+  const [alertSearch,   setAlertSearch]   = useState('')
+
+  const filteredHighRiskUsers = useMemo(() => {
+    if (!demographics?.highRiskUsers) return []
+    if (!alertSearch.trim()) return demographics.highRiskUsers
+    const q = alertSearch.trim().toLowerCase()
+    return demographics.highRiskUsers.filter(u =>
+      u.email.toLowerCase().includes(q) ||
+      u.fieldOfStudy?.toLowerCase().includes(q) ||
+      u.yearLevel?.toLowerCase().includes(q)
+    )
+  }, [demographics?.highRiskUsers, alertSearch])
 
   useEffect(() => {
     fetch('/api/admin/stats')
@@ -298,54 +315,103 @@ export default function AdminAnalyticsPage() {
 
             {/* Expandable user list + notify form */}
             {alertExpanded && (
-              <div className="border-t border-red-500/15 p-5 space-y-5">
+              <div className="border-t border-red-500/15 p-5 space-y-4">
                 {demographics.highRiskUsers.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No registered high-risk users found. Survey-only respondents cannot receive notifications.
+                    No respondents with High or Critical risk found.
                   </p>
                 ) : (
                   <>
-                    <p className="text-xs text-muted-foreground">
-                      {demographics.highRiskUsers.length} registered user{demographics.highRiskUsers.length !== 1 ? 's' : ''} with High or Critical risk.
-                      Select a user to send them a notification that will appear in their notification bell.
-                    </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">
+                          {demographics.highRiskUsers.length} respondent{demographics.highRiskUsers.length !== 1 ? 's' : ''} with High or Critical risk
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          View details or send notifications to registered users.
+                        </p>
+                      </div>
+                      <div className="relative max-w-xs w-full">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <input
+                          type="search"
+                          placeholder="Search high-risk respondents…"
+                          value={alertSearch}
+                          onChange={(e) => setAlertSearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
 
                     {/* User cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {demographics.highRiskUsers.map(u => (
-                        <button
-                          key={u.userId}
-                          onClick={() => setActiveUser(activeUser?.userId === u.userId ? null : u)}
-                          className={`text-left p-4 rounded-xl border transition-all ${
-                            activeUser?.userId === u.userId
-                              ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
-                              : 'border-red-500/20 bg-red-500/[0.03] hover:border-red-500/40 hover:bg-red-500/[0.06]'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{u.email}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {[u.yearLevel, u.fieldOfStudy].filter(Boolean).join(' · ') || 'No profile info'}
-                              </p>
-                              {(u.age || u.gender) && (
-                                <p className="text-xs text-muted-foreground">
-                                  {[u.age ? `Age ${u.age}` : null, u.gender].filter(Boolean).join(' · ')}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
+                      {filteredHighRiskUsers.map((u, idx) => {
+                        const isSelected = !!activeUser && (activeUser.userId ? activeUser.userId === u.userId : activeUser.email === u.email);
+                        const userKey = u.userId ?? `${u.email}-${idx}`;
+                        const profileUrl = `/admin/users/${u.userId ?? encodeURIComponent(u.email)}`;
+
+                        return (
+                          <div
+                            key={userKey}
+                            className={`p-4 rounded-xl border transition-all ${
+                              isSelected
+                                ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+                                : 'border-red-500/20 bg-red-500/[0.03] hover:border-red-500/40 hover:bg-red-500/[0.06]'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <Link
+                                  href={profileUrl}
+                                  className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors block"
+                                >
+                                  {u.email}
+                                </Link>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {[u.yearLevel, u.fieldOfStudy].filter(Boolean).join(' · ') || 'No profile info'}
                                 </p>
-                              )}
-                              <p className="text-[11px] text-muted-foreground/50 mt-1">Last log: {u.lastLogDate}</p>
+                                {(u.age || u.gender) && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {[u.age ? `Age ${u.age}` : null, u.gender].filter(Boolean).join(' · ')}
+                                  </p>
+                                )}
+                                <p className="text-[11px] text-muted-foreground/50 mt-1">Last log: {u.lastLogDate}</p>
+                              </div>
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${riskBadge[u.lastRiskLevel] ?? ''}`}>
+                                {u.lastRiskLevel}
+                              </span>
                             </div>
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${riskBadge[u.lastRiskLevel] ?? ''}`}>
-                              {u.lastRiskLevel}
-                            </span>
+
+                            <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs">
+                              {u.userId ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveUser(isSelected ? null : u)}
+                                  className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-medium"
+                                >
+                                  <Bell className="w-3.5 h-3.5" />
+                                  {isSelected ? 'Close' : 'Notify this user'}
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground/60 italic">Survey respondent</span>
+                              )}
+                              <Link
+                                href={profileUrl}
+                                className="text-[11px] text-muted-foreground hover:text-primary transition-colors ml-auto flex items-center gap-1"
+                              >
+                                View details &rarr;
+                              </Link>
+                            </div>
                           </div>
-                          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-primary">
-                            <Bell className="w-3.5 h-3.5" />
-                            {activeUser?.userId === u.userId ? 'Close' : 'Notify this user'}
-                          </div>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
+
+                    {filteredHighRiskUsers.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        No respondents found matching &ldquo;{alertSearch}&rdquo;
+                      </p>
+                    )}
 
                     {/* Notify panel — shown below cards when a user is selected */}
                     {activeUser && (

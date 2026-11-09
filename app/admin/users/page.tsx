@@ -176,14 +176,6 @@ export default function AdminUsersPage() {
           <input type="search" placeholder="Search by email…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search respondents by email" className="w-full pl-9 pr-4 py-2 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="source-filter" className="text-sm text-muted-foreground whitespace-nowrap">Source:</label>
-          <select id="source-filter" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value as SourceFilter)} className="py-2 px-3 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-            <option value="All">All</option>
-            <option value="Registered">Registered users</option>
-            <option value="Survey">Survey only</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
           <label htmlFor="risk-filter" className="text-sm text-muted-foreground whitespace-nowrap">Risk Level:</label>
           <select id="risk-filter" value={riskFilter} onChange={(e) => setRiskFilter(e.target.value as RiskFilter)} className="py-2 px-3 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary">
             {RISK_LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}
@@ -208,20 +200,6 @@ export default function AdminUsersPage() {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <button onClick={() => setRiskFilter('All')} className={`px-3 py-1 rounded-full border transition-colors ${riskFilter === 'All' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:bg-muted'}`} aria-pressed={riskFilter === 'All'}>
             Total: {allUsers.length}
-          </button>
-          <button
-            onClick={() => setSourceFilter((prev) => prev === 'Registered' ? 'All' : 'Registered')}
-            className={`px-3 py-1 rounded-full border transition-colors text-xs font-medium ${sourceFilter === 'Registered' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
-            aria-pressed={sourceFilter === 'Registered'}
-          >
-            Registered: {registeredCount}
-          </button>
-          <button
-            onClick={() => setSourceFilter((prev) => prev === 'Survey' ? 'All' : 'Survey')}
-            className={`px-3 py-1 rounded-full border transition-colors text-xs font-medium ${sourceFilter === 'Survey' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:bg-muted'}`}
-            aria-pressed={sourceFilter === 'Survey'}
-          >
-            Survey: {surveyCount}
           </button>
           {(['Low', 'Moderate', 'High', 'Critical'] as const).map((level) => (
             <button key={level} onClick={() => setRiskFilter((prev) => prev === level ? 'All' : level)} className={`px-3 py-1 rounded-full border transition-colors font-medium ${riskFilter === level ? 'ring-2 ring-offset-1 ring-current ' + riskBadgeColors[level] : riskBadgeColors[level] + ' border-transparent'}`} aria-pressed={riskFilter === level}>

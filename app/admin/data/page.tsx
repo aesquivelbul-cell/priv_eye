@@ -182,20 +182,7 @@ export default function AdminDataPage() {
         {exportError && (
           <p role="alert" className="text-sm text-destructive">{exportError}</p>
         )}
-      </div>
-
-      {/* ── Migrate survey → logs card ── MIGRATION COMPLETE — hidden from normal view */}
-      <div className="border border-green-200 dark:border-green-800 rounded-xl p-6 max-w-2xl space-y-3 bg-green-50 dark:bg-green-950/20">
-        <div className="flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-          <div>
-            <h2 className="text-lg font-semibold text-green-800 dark:text-green-300">Migration Complete</h2>
-            <p className="text-sm text-green-700 dark:text-green-400 mt-0.5">
-              399 survey respondents have already been migrated to daily logs. No further action needed.
-            </p>
-          </div>
-        </div>
-      </div>
+      </div>
 
       {/* ── Original migrate card — kept hidden; uncomment if re-migration is needed ── */}
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
