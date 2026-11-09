@@ -172,6 +172,27 @@ function activeSymptoms(log: DailyLog): string {
   return s.length > 0 ? s.join(', ') : 'None'
 }
 
+function fullActiveSymptomsList(log: DailyLog): string[] {
+  const list: string[] = []
+  if (log.sym_dry_eyes && log.sym_dry_eyes !== 'Never') list.push(`Dry eyes (${log.sym_dry_eyes})`)
+  if (log.sym_eye_itchiness && log.sym_eye_itchiness !== 'Never') list.push(`Eye itchiness (${log.sym_eye_itchiness})`)
+  if (log.sym_blurred_vision && log.sym_blurred_vision !== 'Never') list.push(`Blurred vision (${log.sym_blurred_vision})`)
+  if (log.sym_headaches && log.sym_headaches !== 'Never') list.push(`Headaches (${log.sym_headaches})`)
+  if (log.sym_eye_irritation && log.sym_eye_irritation !== 'Never') list.push(`Eye irritation (${log.sym_eye_irritation})`)
+  if (log.sym_light_sensitivity && log.sym_light_sensitivity !== 'Never') list.push(`Light sensitivity (${log.sym_light_sensitivity})`)
+  if (log.sym_difficulty_focusing && log.sym_difficulty_focusing !== 'Never') list.push(`Focus difficulty (${log.sym_difficulty_focusing})`)
+  if (log.sym_neck_shoulder_pain && log.sym_neck_shoulder_pain !== 'Never') list.push(`Neck/shoulder pain (${log.sym_neck_shoulder_pain})`)
+  if (log.sym_mental_fatigue && log.sym_mental_fatigue !== 'Never') list.push(`Mental fatigue (${log.sym_mental_fatigue})`)
+  if (log.sym_difficulty_concentrating && log.sym_difficulty_concentrating !== 'Never') list.push(`Concentration issues (${log.sym_difficulty_concentrating})`)
+  if (list.length === 0) {
+    if (log.eye_strain) list.push('Eye strain')
+    if (log.headaches) list.push('Headaches')
+    if (log.blurry_vision) list.push('Blurry vision')
+    if (log.dry_eyes) list.push('Dry eyes')
+  }
+  return list.length > 0 ? list : ['None reported']
+}
+
 /** Normalise stored year_level so legacy "5th Year or higher" shows as "Others" */
 function normalizeYearLevel(raw: string | undefined | null): { dropdown: string; custom: string } {
   if (!raw) return { dropdown: '', custom: '' }
