@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     const sleepHours = parseFloat(formData.sleepHours) || 7;
     const brightness = brightnessToNumber(formData.screenBrightness ?? formData.brightness ?? '50');
 
-    const eyeStrainFreq    = SYM_FREQ_MAP[formData.sym_blurredVision   ?? formData.blurryVisionFrequency ?? ''] ?? 0;
+    const eyeStrainFreq    = SYM_FREQ_MAP[formData.sym_difficultyFocusing ?? ''] ?? 0;
     const blurryVisionFreq = SYM_FREQ_MAP[formData.sym_blurredVision   ?? formData.blurryVisionFrequency ?? ''] ?? 0;
     const headachesFreq    = SYM_FREQ_MAP[formData.sym_headaches        ?? formData.headachesFrequency    ?? ''] ?? 0;
     const dryEyesFreq      = SYM_FREQ_MAP[formData.sym_dryEyes          ?? formData.dryEyesFrequency      ?? ''] ?? 0;
@@ -430,7 +430,7 @@ export async function POST(request: NextRequest) {
         digital_fatigue_frequency: formData.digitalFatigueFrequency,
         primary_symptom_history:   formData.primarySymptomHistory,
         eye_strain:            eyeStrainFreq    > 0 ? 1 : 0,
-        eye_strain_frequency:  formData.sym_eyeIrritation ?? '',
+        eye_strain_frequency:  formData.sym_difficultyFocusing ?? '',
         headaches:             headachesFreq    > 0 ? 1 : 0,
         headaches_frequency:   formData.sym_headaches ?? '',
         blurry_vision:         blurryVisionFreq > 0 ? 1 : 0,

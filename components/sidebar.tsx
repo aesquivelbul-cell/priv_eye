@@ -8,7 +8,7 @@ import Image from 'next/image';
 import {
   LayoutDashboard, BarChart3, Settings, LogOut,
   AlertCircle, ShieldCheck, Sun, Moon,
-  Bot, CalendarCheck, ClipboardList,
+  Bot, CalendarCheck, ClipboardList, FlaskConical,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { isAdmin } from '@/lib/admin-guard';
@@ -20,6 +20,7 @@ const navItems = [
   { label: 'Risk Prediction', href: '/risk-prediction', icon: AlertCircle,     category: 'main' },
   { label: 'Daily Log',       href: '/daily-log',       icon: CalendarCheck,   category: 'main' },
   { label: 'Log History',     href: '/history',         icon: ClipboardList,   category: 'main' },
+  { label: 'Factor Analysis', href: '/factor-analysis', icon: FlaskConical,    category: 'main' },
   { label: 'AI Assistant',    href: '/ai-assistant',    icon: Bot,             category: 'main' },
   { label: 'Settings',        href: '/settings',        icon: Settings,        category: 'bottom' },
 ];

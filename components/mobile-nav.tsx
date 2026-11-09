@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Eye, BarChart3, AlertCircle, Bot,
+  LayoutDashboard, Eye, BarChart3, AlertCircle, Bot, ClipboardList,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: 'Log',       href: '/daily-log',        icon: Eye },
   { label: 'Analytics', href: '/analytics',        icon: BarChart3 },
   { label: 'Risk',      href: '/risk-prediction',  icon: AlertCircle },
+  { label: 'History',   href: '/history',          icon: ClipboardList },
   { label: 'AI',        href: '/ai-assistant',     icon: Bot },
 ];
 
