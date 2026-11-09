@@ -339,7 +339,7 @@ export default function AdminUserDetailPage() {
           field_of_study:    p.field_of_study ?? '',
         })
       })
-      .catch(err => setError(err.message === 'not_found' ? 'No logs found for this user.' : 'Failed to load user data.'))
+      .catch(err => setError(err.message === 'not_found' ? 'User profile not found.' : 'Failed to load user data.'))
       .finally(() => setLoading(false))
   }, [userId])
 
@@ -526,8 +526,8 @@ export default function AdminUserDetailPage() {
     data?.profile?.email ?? decodeURIComponent(userId ?? '')
   )
 
-  const visibleLogs = data?.logs.filter(l => showHidden || !l.hidden_by_admin) ?? []
-  const hiddenCount = data?.logs.filter(l => l.hidden_by_admin).length ?? 0
+  const visibleLogs = (data?.logs || []).filter(l => showHidden || !l.hidden_by_admin) ?? []
+  const hiddenCount = (data?.logs || []).filter(l => l.hidden_by_admin).length ?? 0
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -709,7 +709,7 @@ export default function AdminUserDetailPage() {
           </section>
 
           {/* ── NEW: Longitudinal Exposure & Diagnostic Summary ── */}
-          {data.logs && data.logs.length > 0 && (() => {
+          {(data.logs || []).length > 0 && (() => {
             const numLogs = data.logs.length
             const avgScreen = (data.logs.reduce((acc, l) => acc + (Number(l.screen_time) || 0), 0) / numLogs).toFixed(1)
             const avgSleep = (data.logs.reduce((acc, l) => acc + (Number(l.sleep_hours) || 0), 0) / numLogs).toFixed(1)
@@ -768,7 +768,7 @@ export default function AdminUserDetailPage() {
           <section aria-labelledby="logs-heading">
             <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
               <h2 id="logs-heading" className="text-lg font-semibold text-foreground">
-                Log History ({visibleLogs.length}{hiddenCount > 0 ? ` / ${data.logs.length} total` : ''})
+                Log History ({visibleLogs.length}{hiddenCount > 0 ? ` / ${(data.logs || []).length} total` : ''})
               </h2>
               {hiddenCount > 0 && (
                 <button
