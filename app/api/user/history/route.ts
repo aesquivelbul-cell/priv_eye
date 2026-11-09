@@ -23,7 +23,6 @@ export async function GET() {
     .select(
       'id, date, screen_time, sleep_hours, brightness, ' +
       'eye_strain, headaches, blurry_vision, dry_eyes, risk_level, hidden_by_admin, ' +
-      // extended fields stored on daily_logs (survey-style)
       'academic_screen_time, non_academic_screen_time, primary_device, ' +
       'continuous_screen_use, online_classes_per_day, ' +
       'follows_20_20_20, blue_light_filter, screen_brightness, dark_room_use, ' +
@@ -32,17 +31,52 @@ export async function GET() {
       'sym_eye_irritation, sym_light_sensitivity, sym_difficulty_focusing, ' +
       'sym_neck_shoulder_pain, sym_mental_fatigue, sym_difficulty_concentrating, ' +
       'overall_eye_strain, digital_fatigue_frequency, primary_symptom_history, ' +
-      'cvsq_score, cvsq_status'
+      'cvsq_visual_complaints, cvsq_ocular_complaints, cvsq_extraocular_complaints, cvsq_frequency, cvsq_screen_associated'
     )
     .eq('user_id', user.id)
     .order('date', { ascending: false })
 
   if (logsError) {
+    console.error('Error fetching user daily_logs:', logsError)
     return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 })
   }
 
-  // ── 2. Always try to fetch survey_responses by email ─────────────────────
-  // A user might have participated in the imported survey before registering.
+  // Compute CVSQ scores dynamically from complaint lists
+  const computedLogs = (logs ?? []).map((l: any) => {
+    let cvsq_score: number | null = null
+    let cvsq_status: string | null = null
+
+    try {
+      if (l.cvsq_frequency || l.cvsq_screen_associated) {
+        const parseList = (val: any) => {
+          if (!val) return 0
+          if (Array.isArray(val)) return Math.min(val.length, 2)
+          try {
+            const arr = JSON.parse(val)
+            return Math.min(Array.isArray(arr) ? arr.length : 0, 2)
+          } catch {
+            return 0
+          }
+        }
+        const q1 = parseList(l.cvsq_visual_complaints)
+        const q2 = parseList(l.cvsq_ocular_complaints)
+        const q3 = parseList(l.cvsq_extraocular_complaints)
+        const freqMap: Record<string, number> = { 'Rare': 0, 'Infrequent': 1, 'Frequent': 2 }
+        const scrMap: Record<string, number> = { 'Never': 0, 'Sometimes': 1, 'Always': 2 }
+        const q4 = freqMap[l.cvsq_frequency] ?? 0
+        const q5 = scrMap[l.cvsq_screen_associated] ?? 0
+        const total = q1 + q2 + q3 + q4 + q5
+        cvsq_score = total
+        cvsq_status = total >= 7 ? 'Positive for CVS' : total >= 5 ? 'High Probability' : total >= 3 ? 'Low Probability' : 'Not a CVS Case'
+      }
+    } catch {
+      /* non-fatal */
+    }
+
+    return { ...l, cvsq_score, cvsq_status }
+  })
+
+  // ── 2. Fetch survey_responses by email ────────────────────────────────────
   const email = user.email
   let surveyResponses: Record<string, unknown>[] = []
 
@@ -69,5 +103,5 @@ export async function GET() {
     surveyResponses = (surveyRows as unknown as Record<string, unknown>[]) ?? []
   }
 
-  return NextResponse.json({ logs: logs ?? [], surveyResponses })
+  return NextResponse.json({ logs: computedLogs, surveyResponses })
 }
