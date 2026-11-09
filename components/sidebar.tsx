@@ -63,6 +63,9 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   const handleLogout = async () => {
     setLoggingOut(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear();
+    }
     await supabase.auth.signOut();
     router.push('/');
   };

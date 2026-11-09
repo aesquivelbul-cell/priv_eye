@@ -5,6 +5,7 @@ import {
   Send, Bot, User, Loader2, X, MessageCircle, Minimize2,
   RotateCcw, AlertTriangle, Copy, Check, Sparkles, ShieldAlert
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,8 +24,6 @@ const SUGGESTED_QUESTIONS = [
   'How does lack of sleep affect eye strain?',
   'How do I set optimal screen brightness?',
 ];
-
-const STORAGE_KEY = 'eyeguard_user_chat_session';
 
 /**
  * Formats markdown-like text safely: renders emergency callouts, bold tags,
@@ -115,6 +114,9 @@ function FormattedMessage({ content }: { content: string }) {
 }
 
 export function AiChat({ mode, initialMessage }: AiChatProps) {
+  const supabase = createClient();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const defaultMsg: Message = {
     role: 'assistant',
     content:
@@ -122,40 +124,81 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       "Hi! I'm EyeGuard AI 👋 I'm your evidence-based eye wellness companion. Ask me anything about your digital eye strain, ergonomic setup, or the 20-20-20 rule.",
   };
 
-  // Restore conversation from sessionStorage
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window === 'undefined') return [defaultMsg];
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null');
-      return saved?.messages?.length ? saved.messages : [defaultMsg];
-    } catch {
-      return [defaultMsg];
-    }
-  });
-
-  const [isOpen, setIsOpen] = useState<boolean>(() => {
-    if (mode !== 'bubble' || typeof window === 'undefined') return false;
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? 'null');
-      return Boolean(saved?.isOpen);
-    } catch {
-      return false;
-    }
-  });
-
+  const [messages, setMessages] = useState<Message[]>([defaultMsg]);
+  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prevUserRef = useRef<string | null>(null);
 
-  // Sync state to sessionStorage whenever messages or isOpen changes
+  // Clean up legacy unkeyed session key on initial mount
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('eyeguard_user_chat_session');
+    }
+  }, []);
+
+  // Monitor active user account
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const uid = user?.id ?? 'guest';
+      setCurrentUserId(uid);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const uid = session?.user?.id ?? 'guest';
+      setCurrentUserId(uid);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  // Account switch detection: reload user-specific chat or reset when user changes
+  useEffect(() => {
+    if (!currentUserId || typeof window === 'undefined') return;
+
+    const storageKey = `eyeguard_chat_${currentUserId}`;
+
+    if (prevUserRef.current !== null && prevUserRef.current !== currentUserId) {
+      // Switched accounts! Reset and load the new user's chat session
+      try {
+        const userSaved = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null');
+        setMessages(userSaved?.messages?.length ? userSaved.messages : [defaultMsg]);
+        if (mode === 'bubble') {
+          setIsOpen(Boolean(userSaved?.isOpen));
+        }
+      } catch {
+        setMessages([defaultMsg]);
+      }
+    } else if (prevUserRef.current === null) {
+      // First resolved user
+      try {
+        const userSaved = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null');
+        if (userSaved?.messages?.length) {
+          setMessages(userSaved.messages);
+        }
+        if (mode === 'bubble' && userSaved?.isOpen != null) {
+          setIsOpen(Boolean(userSaved.isOpen));
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    prevUserRef.current = currentUserId;
+  }, [currentUserId, defaultMsg, mode]);
+
+  // Sync state to user-specific sessionStorage key
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentUserId) return;
     try {
+      const storageKey = `eyeguard_chat_${currentUserId}`;
       sessionStorage.setItem(
-        STORAGE_KEY,
+        storageKey,
         JSON.stringify({
+          userId: currentUserId,
           messages,
           isOpen: mode === 'bubble' ? isOpen : false,
         })
@@ -163,7 +206,7 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
     } catch {
       /* storage quota exceeded - ignore */
     }
-  }, [messages, isOpen, mode]);
+  }, [messages, isOpen, mode, currentUserId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -177,20 +220,14 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
 
   const clearChat = useCallback(() => {
     setMessages([defaultMsg]);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && currentUserId) {
       try {
-        sessionStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({
-            messages: [defaultMsg],
-            isOpen: mode === 'bubble' ? isOpen : false,
-          })
-        );
+        sessionStorage.removeItem(`eyeguard_chat_${currentUserId}`);
       } catch {
         /* ignore */
       }
     }
-  }, [defaultMsg, isOpen, mode]);
+  }, [defaultMsg, currentUserId]);
 
   const copyToClipboard = (text: string, index: number) => {
     if (typeof navigator !== 'undefined') {

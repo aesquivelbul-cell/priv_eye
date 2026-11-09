@@ -77,6 +77,9 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   const confirmLogout = async () => {
     setLoggingOut(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear();
+    }
     await supabase.auth.signOut();
     router.push('/');
   };
