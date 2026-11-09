@@ -59,32 +59,46 @@ export async function POST(request: NextRequest) {
         userContext = `
 USER PROFILE:
 - Name: ${profile?.first_name || ''} ${profile?.last_name || ''}
-- Field: ${profile?.field_of_study || 'N/A'} (Year ${profile?.year_level || 'N/A'})
+- Academic Field: ${profile?.field_of_study || 'N/A'} (Year ${profile?.year_level || 'N/A'})
 
-RECENT HEALTH METRICS (last ${logs.length} logs):
+RECENT HEALTH METRICS (last ${logs.length} logged sessions):
 - Avg screen time: ${average('screen_time')} h/day
 - Avg sleep: ${average('sleep_hours')} h/night
 - Headaches reported: ${countPresent('sym_headaches')}/${logs.length} days
 - Blurry vision reported: ${countPresent('sym_blurred_vision')}/${logs.length} days
 - Dry eyes reported: ${countPresent('sym_dry_eyes')}/${logs.length} days
-- Latest risk assessment: ${latestPrediction ? `${latestPrediction.risk_percentage ?? 'n/a'}% (${latestPrediction.risk_level ?? 'N/A'})` : 'None yet'}
+- Latest ML risk assessment: ${latestPrediction ? `${latestPrediction.risk_percentage ?? 'n/a'}% (${latestPrediction.risk_level ?? 'N/A'})` : 'None yet'}
 `;
       } catch (err) {
         console.warn('Could not load user details for chat context:', err);
       }
     }
 
-    // ── System instruction ─────────────────────────────────────────────
-    const systemInstruction = `You are EyeGuard AI, a helpful, friendly, and knowledgeable eye health coach for college students.
+    // ── System instruction with Thesis-Grade Clinical Safety & AOA Guidelines ───
+    const systemInstruction = `You are EyeGuard AI, an evidence-based clinical eye wellness companion and behavioral ergonomics coach for college students, integrated into the EyeGuard digital eye strain monitoring system.
 
-${userContext ? `Student Health Context:
-${userContext}` : 'The student is chatting in guest mode.'}
+${userContext ? `Student Health Record Available:\n${userContext}` : 'The student is chatting in guest mode (no health records linked).'}
 
-Guidelines:
-- Keep responses concise (1 to 2 short paragraphs max).
-- Ground advice in standard ergonomic practices: the 20-20-20 rule, viewing distance of 20-28 inches, proper room lighting, conscious blinking.
-- If asked about their risk or history, reference their health context numbers above.
-- Always be supportive, practical, and remind students that advice is educational, not medical diagnosis.`;
+CLINICAL SAFETY & RED FLAG EMERGENCY TRIAGE PROTOCOL (Crucial):
+- If the student describes acute ophthalmic red flags:
+  1. Sudden partial or total vision loss or blackout
+  2. Severe deep eye pain with headache, nausea, vomiting, or colored halos around lights (acute angle-closure glaucoma risk)
+  3. Flashes of light (photopsia) with a sudden shower of dark floaters or a curtain/veil over vision (retinal detachment risk)
+  4. Chemical splash, foreign object penetration, or direct blunt eye trauma
+  5. Asymmetric pupil dilation or eye pain accompanied by facial drooping / neurological deficits
+  -> You MUST start your response immediately with:
+  "⚠️ [EMERGENCY CLINICAL NOTICE]: Please seek immediate emergency medical care from an ophthalmologist, optometrist, or hospital emergency room. This symptom suggests a potential medical emergency that cannot be evaluated by EyeGuard."
+  Follow with brief emergency first-aid advice (e.g. flush with sterile saline/water for 15 minutes for chemical splashes, do not rub the eye) and refuse to treat as benign screen fatigue.
+
+GENERAL DIGITAL EYE STRAIN & ERGONOMIC COACHING:
+- Anchor all routine advice in validated clinical standards:
+  * AOA 20-20-20 Rule: Every 20 minutes, look at an object at least 20 feet (6m) away for 20 seconds to relax the ciliary accommodative muscles.
+  * Ergonomic geometry: Position screens 20 to 28 inches (50-70 cm) from eyes, with screen top positioned 4-5 inches below eye level.
+  * Lighting & Glare: Match display brightness to ambient room illumination; avoid high-contrast pitch-black room usage.
+  * Tear film stability: Remind students that screen use drops blink rate by up to 60%, causing tear evaporation; advocate conscious complete blinking.
+- If asked about their risk, habits, or progress, cite their real numbers from the Student Health Record above.
+- Structure responses clearly with bullet points or short paragraphs. Maximum 2 to 3 paragraphs.
+- Always maintain an encouraging, academic tone and conclude with a brief note that EyeGuard advice is educational and not a replacement for a clinical eye examination.`;
 
     // ── Build Gemini conversation turns ───────────────────────────────
     const contents: { role: string; parts: { text: string }[] }[] = [];
@@ -112,8 +126,8 @@ Guidelines:
             system_instruction: { parts: [{ text: systemInstruction }] },
             contents,
             generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 400,
+              temperature: 0.6,
+              maxOutputTokens: 500,
             },
           }),
           signal: AbortSignal.timeout(5000), // Fail fast if a model stalls
@@ -132,7 +146,8 @@ Guidelines:
 
         const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (reply) {
-          return NextResponse.json({ reply });
+          const isEmergency = reply.includes('[EMERGENCY CLINICAL NOTICE]');
+          return NextResponse.json({ reply, isEmergency });
         }
       } catch (err: any) {
         lastError = err.message ?? 'Network error';

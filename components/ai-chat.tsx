@@ -1,11 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, X, MessageCircle, Minimize2, RotateCcw } from 'lucide-react';
+import {
+  Send, Bot, User, Loader2, X, MessageCircle, Minimize2,
+  RotateCcw, AlertTriangle, Copy, Check, Sparkles, ShieldAlert
+} from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  isEmergency?: boolean;
 }
 
 interface AiChatProps {
@@ -15,19 +19,107 @@ interface AiChatProps {
 
 const SUGGESTED_QUESTIONS = [
   'What is the 20-20-20 rule?',
-  'How can I reduce eye strain?',
-  'Is my screen time too high?',
-  'How does sleep affect eye health?',
+  'Why does screen time cause blurry vision?',
+  'How does lack of sleep affect eye strain?',
+  'How do I set optimal screen brightness?',
 ];
 
 const STORAGE_KEY = 'eyeguard_user_chat_session';
+
+/**
+ * Formats markdown-like text safely: renders emergency callouts, bold tags,
+ * bullet lists, and paragraphs cleanly.
+ */
+function FormattedMessage({ content }: { content: string }) {
+  const isEmergency = content.includes('[EMERGENCY CLINICAL NOTICE]');
+
+  // If message contains an emergency alert, separate the alert header from the rest
+  let alertText = '';
+  let bodyText = content;
+
+  if (isEmergency) {
+    const parts = content.split('\n');
+    const alertLines: string[] = [];
+    const bodyLines: string[] = [];
+    let capturingAlert = true;
+
+    for (const line of parts) {
+      if (capturingAlert) {
+        alertLines.push(line);
+        if (line.includes('cannot be evaluated by EyeGuard') || line.trim() === '') {
+          capturingAlert = false;
+        }
+      } else {
+        bodyLines.push(line);
+      }
+    }
+    alertText = alertLines.join('\n').replace(/⚠️?\s*\[EMERGENCY CLINICAL NOTICE\]:?/, '').trim();
+    bodyText = bodyLines.join('\n').trim();
+  }
+
+  const renderFormattedLines = (text: string) => {
+    const lines = text.split('\n');
+    return lines.map((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed) return <div key={idx} className="h-1.5" />;
+
+      // Bullet points
+      const isBullet = trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ');
+      const cleanLine = isBullet ? trimmed.replace(/^[•\-*]\s*/, '') : trimmed;
+
+      // Parse bold segments **word**
+      const segments = cleanLine.split(/(\*\*.*?\*\*)/g);
+      const parsedContent = segments.map((seg, sIdx) => {
+        if (seg.startsWith('**') && seg.endsWith('**')) {
+          return <strong key={sIdx} className="font-semibold text-foreground">{seg.slice(2, -2)}</strong>;
+        }
+        return seg;
+      });
+
+      if (isBullet) {
+        return (
+          <div key={idx} className="flex items-start gap-2 pl-1 my-1">
+            <span className="text-[#f97316] font-bold text-xs select-none mt-0.5">•</span>
+            <span className="flex-1">{parsedContent}</span>
+          </div>
+        );
+      }
+
+      return (
+        <p key={idx} className="mb-1.5 last:mb-0">
+          {parsedContent}
+        </p>
+      );
+    });
+  };
+
+  return (
+    <div className="space-y-2 text-sm leading-relaxed">
+      {/* Emergency Red Flag Notice Banner */}
+      {isEmergency && (
+        <div className="p-3.5 rounded-xl bg-red-500/15 border-2 border-red-500/40 text-red-200 text-xs space-y-1.5 animate-in fade-in">
+          <div className="flex items-center gap-2 font-bold text-red-400 uppercase tracking-wide text-[11px]">
+            <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+            <span>Emergency Clinical Triage Notice</span>
+          </div>
+          <p className="leading-relaxed text-red-100 font-medium">
+            {alertText || 'This symptom requires immediate emergency medical evaluation by an eye care specialist or hospital ER.'}
+          </p>
+        </div>
+      )}
+
+      {/* Main body text */}
+      {bodyText && <div>{renderFormattedLines(bodyText)}</div>}
+    </div>
+  );
+}
 
 export function AiChat({ mode, initialMessage }: AiChatProps) {
   const defaultMsg: Message = {
     role: 'assistant',
     content:
       initialMessage ??
-      "Hi! I'm EyeGuard AI 👋 I can answer your eye health questions and give personalised advice based on your data. What would you like to know?",
+      "Hi! I'm EyeGuard AI 👋 I'm your evidence-based eye wellness companion. Ask me anything about your digital eye strain, ergonomic setup, or the 20-20-20 rule.",
   };
 
   // Restore conversation from sessionStorage
@@ -53,6 +145,7 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -99,6 +192,14 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
     }
   }, [defaultMsg, isOpen, mode]);
 
+  const copyToClipboard = (text: string, index: number) => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 1800);
+    }
+  };
+
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
@@ -117,7 +218,9 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       });
       const data = await res.json();
       const reply = data.reply ?? (data.error ? `Error: ${data.error}` : 'Sorry, something went wrong.');
-      setMessages([...newMessages, { role: 'assistant', content: reply }]);
+      const isEmergency = Boolean(data.isEmergency || reply.includes('[EMERGENCY CLINICAL NOTICE]'));
+
+      setMessages([...newMessages, { role: 'assistant', content: reply, isEmergency }]);
     } catch {
       setMessages([...newMessages, { role: 'assistant', content: 'Connection error. Please try again.' }]);
     } finally {
@@ -134,39 +237,53 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
 
   /* ── Shared chat body ── */
   const ChatBody = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#120b06]/60">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-            <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs ${
+          <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} group`}>
+            <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${
               msg.role === 'assistant'
                 ? 'bg-[#f97316]/20 text-[#f97316]'
                 : 'bg-[#fff7ed]/10 text-[#fff7ed]/60'
             }`}>
               {msg.role === 'assistant' ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
             </div>
-            <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+
+            <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed relative ${
               msg.role === 'assistant'
-                ? 'bg-[#f97316]/8 text-[#fff7ed]/85 rounded-tl-sm border border-[#f97316]/10'
+                ? msg.isEmergency
+                  ? 'bg-red-950/20 text-[#fff7ed]/90 rounded-tl-sm border border-red-500/30 shadow-lg shadow-red-950/20'
+                  : 'bg-[#f97316]/8 text-[#fff7ed]/85 rounded-tl-sm border border-[#f97316]/12 shadow-sm'
                 : 'bg-[#f97316] text-[#0f0a07] rounded-tr-sm font-medium'
             }`}>
-              {msg.role === 'assistant'
-                ? msg.content
-                    .replace(/^#{1,6}\s+/gm, '')         // strip # headings
-                    .replace(/\*\*(.+?)\*\*/g, '$1')     // strip **bold**
-                    .replace(/\*(.+?)\*/g, '$1')          // strip *italic*
-                    .replace(/^[-•]\s+/gm, '• ')         // normalise bullets
-                    .replace(/---+/g, '')                 // strip dividers
-                    .trim()
-                    .split('\n')
-                    .filter(line => line.trim() !== '')
-                    .map((line, idx, arr) => (
-                      <span key={idx} className={`block ${idx < arr.length - 1 ? 'mb-1' : ''}`}>
-                        {line}
-                      </span>
-                    ))
-                : msg.content}
+              {msg.role === 'assistant' ? (
+                <>
+                  <FormattedMessage content={msg.content} />
+                  {/* Action row on hover */}
+                  <div className="flex items-center justify-end gap-2 mt-2 pt-1 border-t border-[#f97316]/10 opacity-70 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => copyToClipboard(msg.content, i)}
+                      title="Copy response"
+                      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-[#fff7ed]/5"
+                    >
+                      {copiedIndex === i ? (
+                        <>
+                          <Check className="w-3 h-3 text-green-400" />
+                          <span className="text-green-400">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
             </div>
           </div>
         ))}
@@ -176,9 +293,9 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#f97316]/20 text-[#f97316] flex items-center justify-center">
               <Bot className="w-3.5 h-3.5" />
             </div>
-            <div className="bg-[#f97316]/8 border border-[#f97316]/10 rounded-2xl rounded-tl-sm px-3.5 py-3 flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#f97316]/60" />
-              <span className="text-xs text-[#fff7ed]/40">Thinking…</span>
+            <div className="bg-[#f97316]/8 border border-[#f97316]/10 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#f97316]/70" />
+              <span className="text-xs text-[#fff7ed]/50 font-medium">Analyzing with EyeGuard Clinical Engine…</span>
             </div>
           </div>
         )}
@@ -187,28 +304,34 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
 
       {/* Suggested questions */}
       {messages.length === 1 && (
-        <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-          {SUGGESTED_QUESTIONS.map((q) => (
-            <button
-              key={q}
-              onClick={() => sendMessage(q)}
-              className="text-xs px-3 py-1.5 rounded-full border border-[#f97316]/15 bg-[#f97316]/5 hover:bg-[#f97316]/15 transition-colors text-[#fff7ed]/55 hover:text-[#fff7ed]"
-            >
-              {q}
-            </button>
-          ))}
+        <div className="px-4 pb-2">
+          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-[#f97316]" />
+            Suggested Questions
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {SUGGESTED_QUESTIONS.map((q) => (
+              <button
+                key={q}
+                onClick={() => sendMessage(q)}
+                className="text-xs px-3 py-1.5 rounded-full border border-[#f97316]/15 bg-[#f97316]/5 hover:bg-[#f97316]/15 transition-colors text-[#fff7ed]/70 hover:text-[#fff7ed] text-left"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Input */}
-      <div className="p-3 border-t border-[#f97316]/12">
+      <div className="p-3 border-t border-[#f97316]/12 bg-background/50">
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about eye health…"
+            placeholder="Ask EyeGuard AI about eye fatigue, 20-20-20, ergonomics…"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-[#f97316]/15 bg-[#fff7ed]/5 px-3.5 py-2.5 text-sm text-[#fff7ed] placeholder:text-[#fff7ed]/30 focus:outline-none focus:ring-2 focus:ring-[#f97316]/40 max-h-28 overflow-y-auto"
             style={{ minHeight: '40px' }}
@@ -223,8 +346,9 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
             <Send className="w-3.5 h-3.5" />
           </button>
         </div>
-        <p className="text-[10px] text-[#fff7ed]/25 mt-2 text-center">
-          AI advice is informational only — not a substitute for medical care.
+        <p className="text-[10px] text-muted-foreground mt-2 text-center flex items-center justify-center gap-1">
+          <AlertTriangle className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+          <span>Informational triage only — not a substitute for clinical optometric examination.</span>
         </p>
       </div>
     </div>
@@ -233,28 +357,33 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
   /* ── INLINE MODE ── */
   if (mode === 'inline') {
     return (
-      <div className="border border-[#f97316]/15 bg-[#f97316]/[0.03] rounded-xl overflow-hidden flex flex-col h-[480px]">
+      <div className="border border-[#f97316]/15 bg-[#f97316]/[0.03] rounded-2xl overflow-hidden flex flex-col h-full min-h-[520px]">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f97316]/12 bg-[#f97316]/5">
+        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#f97316]/12 bg-[#f97316]/5">
           <div className="w-8 h-8 rounded-full bg-[#f97316]/20 flex items-center justify-center">
             <Bot className="w-4 h-4 text-[#f97316]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">EyeGuard AI</p>
-            <p className="text-xs text-[#fff7ed]/40">Eye health assistant</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">EyeGuard Clinical AI</p>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f97316]/10 text-[#f97316] border border-[#f97316]/20">
+                AOA Guidelines
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">Digital eye strain triage companion</p>
           </div>
           <div className="ml-auto flex items-center gap-3">
             <button
               onClick={clearChat}
               title="Reset conversation"
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md border border-border hover:bg-muted"
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1 rounded-lg border border-border hover:bg-muted"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset</span>
             </button>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-400" />
-              <span className="text-xs text-[#fff7ed]/40">Online</span>
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs text-muted-foreground">Online</span>
             </div>
           </div>
         </div>
@@ -269,7 +398,7 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
       {/* Chat popup */}
       {isOpen && (
         <div
-          className="fixed bottom-20 right-5 z-50 w-[360px] max-w-[calc(100vw-2.5rem)] h-[520px] max-h-[calc(100vh-6rem)] bg-[#1a1008] border border-[#f97316]/20 rounded-2xl shadow-2xl shadow-black/60 flex flex-col overflow-hidden"
+          className="fixed bottom-20 right-5 z-50 w-[380px] max-w-[calc(100vw-2.5rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-[#140c06] border border-[#f97316]/25 rounded-2xl shadow-2xl shadow-black/80 flex flex-col overflow-hidden"
           role="dialog"
           aria-label="EyeGuard AI chat"
         >
@@ -279,13 +408,18 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
               <Bot className="w-4 h-4 text-[#f97316]" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#fff7ed]">EyeGuard AI</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-[#fff7ed]">EyeGuard AI</p>
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20">
+                  Triage
+                </span>
+              </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                <span className="text-[10px] text-[#fff7ed]/40">Online · Eye health assistant</span>
+                <span className="text-[10px] text-[#fff7ed]/50">Online · Eye health assistant</span>
               </div>
             </div>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex items-center gap-1">
               <button
                 onClick={clearChat}
                 title="Reset conversation"
