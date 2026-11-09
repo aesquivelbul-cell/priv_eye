@@ -368,7 +368,7 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask EyeGuard AI about eye fatigue, 20-20-20, ergonomics…"
+            placeholder="Ask a question about eye health, 20-20-20…"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-[#f97316]/15 bg-[#fff7ed]/5 px-3.5 py-2.5 text-sm text-[#fff7ed] placeholder:text-[#fff7ed]/30 focus:outline-none focus:ring-2 focus:ring-[#f97316]/40 max-h-28 overflow-y-auto"
             style={{ minHeight: '40px' }}
