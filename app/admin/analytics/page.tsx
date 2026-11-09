@@ -120,8 +120,9 @@ function NotifyPanel({ user, onClose }: { user: UserRecord; onClose: () => void 
   const send = async () => {
     const text = message.trim()
     if (!text || sending) return
-    if (!user.userId) {
-      setError('Cannot send in-app notification: respondent has no registered account.')
+    const targetId = user.userId || user.email
+    if (!targetId) {
+      setError('Respondent identifier is required.')
       return
     }
     setSending(true); setError('')
@@ -129,7 +130,7 @@ function NotifyPanel({ user, onClose }: { user: UserRecord; onClose: () => void 
       const res = await fetch('/api/admin/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.userId, content: text, severity }),
+        body: JSON.stringify({ userId: targetId, content: text, severity }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to send')
@@ -328,7 +329,7 @@ export default function AdminAnalyticsPage() {
                           {demographics.highRiskUsers.length} respondent{demographics.highRiskUsers.length !== 1 ? 's' : ''} with High or Critical risk
                         </p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          View details or send notifications to registered users.
+                          View details or send notifications to respondents.
                         </p>
                       </div>
                       <div className="relative max-w-xs w-full">
@@ -346,7 +347,10 @@ export default function AdminAnalyticsPage() {
                     {/* User cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
                       {filteredHighRiskUsers.map((u, idx) => {
-                        const isSelected = !!activeUser && (activeUser.userId ? activeUser.userId === u.userId : activeUser.email === u.email);
+                        const isSelected = !!activeUser && (
+                          (activeUser.userId && u.userId && activeUser.userId === u.userId) ||
+                          (activeUser.email && u.email && activeUser.email.toLowerCase() === u.email.toLowerCase())
+                        );
                         const userKey = u.userId ?? `${u.email}-${idx}`;
                         const profileUrl = `/admin/users/${u.userId ?? encodeURIComponent(u.email)}`;
 
@@ -383,18 +387,14 @@ export default function AdminAnalyticsPage() {
                             </div>
 
                             <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs">
-                              {u.userId ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveUser(isSelected ? null : u)}
-                                  className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-medium"
-                                >
-                                  <Bell className="w-3.5 h-3.5" />
-                                  {isSelected ? 'Close' : 'Notify this user'}
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-muted-foreground/60 italic">Survey respondent</span>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => setActiveUser(isSelected ? null : u)}
+                                className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors font-medium"
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                                {isSelected ? 'Close' : 'Notify this user'}
+                              </button>
                               <Link
                                 href={profileUrl}
                                 className="text-[11px] text-muted-foreground hover:text-primary transition-colors ml-auto flex items-center gap-1"
