@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, Lock, Send, Copy, Check,
-  Pencil, EyeOff, Eye, AlertTriangle, X, ShieldAlert, Bell,
+  Pencil, EyeOff, Eye, AlertTriangle, X, ShieldAlert, Bell, Printer, FileText, Activity, Clock, Moon, ShieldCheck, Stethoscope,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -21,7 +21,35 @@ interface DailyLog {
   blurry_vision: number
   dry_eyes: number
   risk_level: string
-  hidden_by_admin?: boolean  // only present after migration 001 is applied
+  hidden_by_admin?: boolean
+  academic_screen_time?: number | string
+  non_academic_screen_time?: number | string
+  primary_device?: string
+  continuous_screen_use?: string
+  online_classes_per_day?: string
+  follows_20_20_20?: string
+  blue_light_filter?: string
+  screen_brightness?: string
+  dark_room_use?: string
+  screen_distance?: string
+  wears_glasses?: string
+  blue_light_glasses?: string
+  break_frequency?: string
+  sym_dry_eyes?: string
+  sym_eye_itchiness?: string
+  sym_blurred_vision?: string
+  sym_headaches?: string
+  sym_eye_irritation?: string
+  sym_light_sensitivity?: string
+  sym_difficulty_focusing?: string
+  sym_neck_shoulder_pain?: string
+  sym_mental_fatigue?: string
+  sym_difficulty_concentrating?: string
+  overall_eye_strain?: string
+  digital_fatigue_frequency?: string
+  primary_symptom_history?: string
+  cvsq_score?: number | null
+  cvsq_status?: string | null
 }
 
 interface SurveyResponse {
@@ -278,6 +306,7 @@ export default function AdminUserDetailPage() {
 
   // Send notification
   const [showNotifyModal, setShowNotifyModal] = useState(false)
+  const [selectedLogToInspect, setSelectedLogToInspect] = useState<DailyLog | null>(null)
   const [notifyContent, setNotifyContent] = useState('')
   const [notifySeverity, setNotifySeverity] = useState<'info' | 'high' | 'critical'>('info')
   const [notifyLoading, setNotifyLoading] = useState(false)
@@ -517,9 +546,17 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
 
-        {/* Actions — notify + delete */}
+        {/* Actions — export + notify + delete */}
         {!loading && data && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              title="Generate formal AOA Clinical Intake Report for this user"
+            >
+              <Printer className="w-4 h-4" />
+              Export Clinical Report
+            </button>
             <button
               onClick={() => { setShowNotifyModal(true); setNotifyResult(null) }}
               className="inline-flex items-center gap-2 px-4 py-2 border border-border bg-background hover:bg-muted text-sm font-semibold rounded-lg transition-colors"
@@ -670,6 +707,62 @@ export default function AdminUserDetailPage() {
             )}
           </section>
 
+          {/* ── NEW: Longitudinal Exposure & Diagnostic Summary ── */}
+          {data.logs && data.logs.length > 0 && (() => {
+            const numLogs = data.logs.length
+            const avgScreen = (data.logs.reduce((acc, l) => acc + (Number(l.screen_time) || 0), 0) / numLogs).toFixed(1)
+            const avgSleep = (data.logs.reduce((acc, l) => acc + (Number(l.sleep_hours) || 0), 0) / numLogs).toFixed(1)
+            const highRiskLogs = data.logs.filter(l => l.risk_level === 'High' || l.risk_level === 'Critical').length
+            const highRiskPct = Math.round((highRiskLogs / numLogs) * 100)
+            const latestCVS = data.logs[0]?.cvsq_status ?? data.surveyResponses?.[0]?.cvsq_status ?? 'Evaluated'
+
+            return (
+              <div className="space-y-3 print:hidden">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-primary" />
+                    Longitudinal Clinical Exposure Profile
+                  </h3>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    Based on {numLogs} recorded session{numLogs > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="border border-border/80 rounded-xl p-3.5 bg-card/60 space-y-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-orange-500" />
+                      Mean Screen Time
+                    </p>
+                    <p className="text-xl font-bold text-foreground font-mono">{avgScreen}h <span className="text-xs font-normal text-muted-foreground">/day</span></p>
+                  </div>
+                  <div className="border border-border/80 rounded-xl p-3.5 bg-card/60 space-y-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Moon className="w-3.5 h-3.5 text-blue-500" />
+                      Mean Sleep
+                    </p>
+                    <p className="text-xl font-bold text-foreground font-mono">{avgSleep}h <span className="text-xs font-normal text-muted-foreground">/night</span></p>
+                  </div>
+                  <div className="border border-border/80 rounded-xl p-3.5 bg-card/60 space-y-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      CVS-Smart Status
+                    </p>
+                    <p className="text-sm font-bold text-foreground truncate">{latestCVS}</p>
+                  </div>
+                  <div className="border border-border/80 rounded-xl p-3.5 bg-card/60 space-y-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                      High Risk Rate
+                    </p>
+                    <p className={`text-xl font-bold font-mono ${highRiskPct >= 50 ? 'text-red-500' : highRiskPct >= 25 ? 'text-yellow-500' : 'text-emerald-500'}`}>
+                      {highRiskPct}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* ── Log History ── */}
           <section aria-labelledby="logs-heading">
             <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -730,6 +823,15 @@ export default function AdminUserDetailPage() {
                             ) : '—'}
                           </td>
                           <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setSelectedLogToInspect(log)}
+                                aria-label={`Inspect full symptoms and ergonomics for ${log.date}`}
+                                title="Inspect full details & all symptoms"
+                                className="p-1.5 rounded-md text-primary hover:bg-primary/10 transition-colors"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </button>
                             {log.hidden_by_admin ? (
                               // Unhide button — no confirmation needed (reversible)
                               <button
@@ -751,6 +853,7 @@ export default function AdminUserDetailPage() {
                                 <EyeOff className="w-4 h-4" />
                               </button>
                             )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1007,6 +1110,127 @@ export default function AdminUserDetailPage() {
           onConfirm={handleSaveProfile}
           onCancel={() => setShowSaveConfirm(false)}
         />
+      )}
+
+      {/* ── NEW: Inspect Day Details Modal ── */}
+      {selectedLogToInspect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:hidden">
+          <div className="bg-card border border-border rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-primary" />
+                  Clinical Day Record — {selectedLogToInspect.date}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Detailed physiological inputs, environmental ergonomics & CVS-Smart symptom spectrum
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedLogToInspect(null)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Exposure metrics overview */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="border border-border/70 rounded-xl p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground">Screen Time</p>
+                <p className="text-lg font-bold text-foreground font-mono">{selectedLogToInspect.screen_time} hrs</p>
+              </div>
+              <div className="border border-border/70 rounded-xl p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground">Sleep Duration</p>
+                <p className="text-lg font-bold text-foreground font-mono">{selectedLogToInspect.sleep_hours} hrs</p>
+              </div>
+              <div className="border border-border/70 rounded-xl p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground">Brightness</p>
+                <p className="text-lg font-bold text-foreground font-mono">{selectedLogToInspect.brightness}%</p>
+              </div>
+              <div className="border border-border/70 rounded-xl p-3 bg-muted/30">
+                <p className="text-xs text-muted-foreground">ML Risk Level</p>
+                <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${RISK_BADGES[selectedLogToInspect.risk_level] ?? 'bg-muted text-foreground'}`}>
+                  {selectedLogToInspect.risk_level || 'Normal'}
+                </span>
+              </div>
+            </div>
+
+            {/* Environmental & Workstation Ergonomics */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Workstation & Behavioral Baseline</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                  <span className="text-muted-foreground block">Breaks Frequency:</span>
+                  <span className="font-semibold text-foreground">{selectedLogToInspect.break_frequency ?? 'Standard (1-2)'}</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                  <span className="text-muted-foreground block">Viewing Distance:</span>
+                  <span className="font-semibold text-foreground">{selectedLogToInspect.screen_distance ?? '20-28 inches'}</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                  <span className="text-muted-foreground block">Dark Room Screen Use:</span>
+                  <span className="font-semibold text-foreground">{selectedLogToInspect.dark_room_use ?? 'No'}</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                  <span className="text-muted-foreground block">Corrective Eyewear:</span>
+                  <span className="font-semibold text-foreground">{selectedLogToInspect.wears_glasses ?? 'None'}</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                  <span className="text-muted-foreground block">Blue Light Filter:</span>
+                  <span className="font-semibold text-foreground">{selectedLogToInspect.blue_light_filter ?? 'Active'}</span>
+                </div>
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card">
+                  <span className="text-muted-foreground block">20-20-20 Rule Adherence:</span>
+                  <span className="font-semibold text-foreground">{selectedLogToInspect.follows_20_20_20 ?? 'Sometimes'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Complete CVS-Smart Symptom Spectrum */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reported Clinical Symptoms & Frequencies</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {[
+                  { label: 'Dry Eyes', val: selectedLogToInspect.sym_dry_eyes ?? (selectedLogToInspect.dry_eyes ? 'Reported' : 'Never') },
+                  { label: 'Headaches', val: selectedLogToInspect.sym_headaches ?? (selectedLogToInspect.headaches ? 'Reported' : 'Never') },
+                  { label: 'Blurred Vision', val: selectedLogToInspect.sym_blurred_vision ?? (selectedLogToInspect.blurry_vision ? 'Reported' : 'Never') },
+                  { label: 'Eye Strain / Fatigue', val: selectedLogToInspect.overall_eye_strain ?? (selectedLogToInspect.eye_strain ? 'Reported' : 'Never') },
+                  { label: 'Eye Itchiness', val: selectedLogToInspect.sym_eye_itchiness ?? 'Never' },
+                  { label: 'Eye Irritation', val: selectedLogToInspect.sym_eye_irritation ?? 'Never' },
+                  { label: 'Light Sensitivity', val: selectedLogToInspect.sym_light_sensitivity ?? 'Never' },
+                  { label: 'Difficulty Focusing', val: selectedLogToInspect.sym_difficulty_focusing ?? 'Never' },
+                  { label: 'Neck / Shoulder Pain', val: selectedLogToInspect.sym_neck_shoulder_pain ?? 'Never' },
+                  { label: 'Mental Fatigue', val: selectedLogToInspect.sym_mental_fatigue ?? 'Never' },
+                ].map(({ label, val }) => {
+                  const isSevere = val === 'Daily' || val === 'Often' || val === 'Reported'
+                  const isModerate = val === 'Sometimes'
+                  return (
+                    <div key={label} className="flex items-center justify-between p-2 rounded-lg border border-border/50 bg-muted/20">
+                      <span className="text-foreground font-medium">{label}</span>
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        isSevere ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                        isModerate ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20' :
+                        'text-muted-foreground'
+                      }`}>
+                        {val}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setSelectedLogToInspect(null)}
+                className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Delete User confirmation modal ── */}

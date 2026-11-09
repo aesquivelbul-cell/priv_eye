@@ -28,11 +28,22 @@ export async function GET(
   const { userId } = await params
   const isUuid = uuidRegex.test(userId)
 
-  // Fetch logs for this user ordered by date descending.
-  // For survey respondents we look up by email when userId isn't a UUID.
+  // Fetch full daily logs for this user with all ergonomic & symptom attributes
   const query = adminClient
     .from('daily_logs')
-    .select('id, date, email, user_id, age, gender, year_level, field_of_study, screen_time, sleep_hours, brightness, eye_strain, headaches, blurry_vision, dry_eyes, risk_level, hidden_by_admin')
+    .select(
+      'id, date, email, user_id, age, gender, year_level, field_of_study, ' +
+      'screen_time, sleep_hours, brightness, eye_strain, headaches, blurry_vision, dry_eyes, risk_level, hidden_by_admin, ' +
+      'academic_screen_time, non_academic_screen_time, primary_device, ' +
+      'continuous_screen_use, online_classes_per_day, ' +
+      'follows_20_20_20, blue_light_filter, screen_brightness, dark_room_use, ' +
+      'screen_distance, wears_glasses, blue_light_glasses, break_frequency, ' +
+      'sym_dry_eyes, sym_eye_itchiness, sym_blurred_vision, sym_headaches, ' +
+      'sym_eye_irritation, sym_light_sensitivity, sym_difficulty_focusing, ' +
+      'sym_neck_shoulder_pain, sym_mental_fatigue, sym_difficulty_concentrating, ' +
+      'overall_eye_strain, digital_fatigue_frequency, primary_symptom_history, ' +
+      'cvsq_visual_complaints, cvsq_ocular_complaints, cvsq_extraocular_complaints, cvsq_frequency, cvsq_screen_associated'
+    )
     .order('date', { ascending: false })
     .eq(isUuid ? 'user_id' : 'email', decodeURIComponent(userId))
 
@@ -42,8 +53,7 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 })
   }
 
-  // For survey-only respondents (email-based lookup) who have no daily_logs,
-  // fall back to survey_responses table so the admin can still see their data.
+  // Fallback to survey_responses if user has no daily logs
   if (!logs || logs.length === 0) {
     if (!isUuid) {
       const email = decodeURIComponent(userId)
@@ -87,6 +97,41 @@ export async function GET(
     return NextResponse.json({ error: 'No logs found for this user' }, { status: 404 })
   }
 
+  // Compute CVS-Smart scores dynamically
+  const computedLogs = (logs ?? []).map((l: any) => {
+    let cvsq_score: number | null = null
+    let cvsq_status: string | null = null
+
+    try {
+      if (l.cvsq_frequency || l.cvsq_screen_associated) {
+        const parseList = (val: any) => {
+          if (!val) return 0
+          if (Array.isArray(val)) return Math.min(val.length, 2)
+          try {
+            const arr = JSON.parse(val)
+            return Math.min(Array.isArray(arr) ? arr.length : 0, 2)
+          } catch {
+            return 0
+          }
+        }
+        const q1 = parseList(l.cvsq_visual_complaints)
+        const q2 = parseList(l.cvsq_ocular_complaints)
+        const q3 = parseList(l.cvsq_extraocular_complaints)
+        const freqMap: Record<string, number> = { 'Rare': 0, 'Infrequent': 1, 'Frequent': 2 }
+        const scrMap: Record<string, number> = { 'Never': 0, 'Sometimes': 1, 'Always': 2 }
+        const q4 = freqMap[l.cvsq_frequency] ?? 0
+        const q5 = scrMap[l.cvsq_screen_associated] ?? 0
+        const total = q1 + q2 + q3 + q4 + q5
+        cvsq_score = total
+        cvsq_status = total >= 7 ? 'Positive for CVS' : total >= 5 ? 'High Probability' : total >= 3 ? 'Low Probability' : 'Not a CVS Case'
+      }
+    } catch {
+      /* non-fatal */
+    }
+
+    return { ...l, cvsq_score, cvsq_status }
+  })
+
   let profile = null
   if (isUuid) {
     const { data: profileData } = await adminClient
@@ -97,7 +142,7 @@ export async function GET(
     profile = profileData ?? null
   }
 
-  const latestLog = logs[0]
+  const latestLog = computedLogs[0]
   const emailVal = (profile as any)?.email ?? latestLog.email ?? decodeURIComponent(userId)
   const defNames = splitNameFromEmail(emailVal)
 
@@ -111,7 +156,18 @@ export async function GET(
     field_of_study: (profile as any)?.field_of_study ?? latestLog.field_of_study ?? null,
   }
 
-  return NextResponse.json({ profile, logs })
+  // Also query survey responses for this email if present
+  let surveyResponses: Record<string, unknown>[] = []
+  if (emailVal) {
+    const { data: sRows } = await adminClient
+      .from('survey_responses')
+      .select('*')
+      .eq('email', emailVal)
+      .order('response_timestamp', { ascending: false })
+    surveyResponses = (sRows as unknown as Record<string, unknown>[]) ?? []
+  }
+
+  return NextResponse.json({ profile, logs: computedLogs, surveyResponses })
 }
 
 export async function PATCH(
@@ -135,127 +191,42 @@ export async function PATCH(
   const isUuid = uuidRegex.test(userId)
   const body = await request.json()
 
-  if (!isUuid) {
-    const email = decodeURIComponent(userId)
-    const profileUpdates = body.profile || {}
-    const updates: Record<string, any> = {}
-    if (profileUpdates.age !== undefined) updates.age = profileUpdates.age
-    if (profileUpdates.gender !== undefined) updates.gender = profileUpdates.gender
-    if (profileUpdates.year_level !== undefined) updates.year_level = profileUpdates.year_level
-    if (profileUpdates.field_of_study !== undefined) updates.field_of_study = profileUpdates.field_of_study
-
-    if (Object.keys(updates).length > 0) {
-      await adminClient.from('daily_logs').update(updates).eq('email', email)
-    }
-
-    try {
-      await recordAdminAuditEvent({
-        targetUserId: null,
-        targetEmail: email,
-        eventType: 'profile_update',
-        description: `Admin updated profile for respondent ${email}`,
-        eventData: { updates },
-        actorId: user?.id ?? null,
-        actorEmail: user?.email ?? null,
-      })
-    } catch { /* non-fatal */ }
-
-    return NextResponse.json({ success: true })
-  }
-  const profileUpdates = body.profile
-  if (!profileUpdates || typeof profileUpdates !== 'object') {
-    return NextResponse.json({ error: 'profile data is required' }, { status: 400 })
-  }
-
-  const allowedFields = [
-    'first_name',
-    'last_name',
-    'age',
-    'gender',
-    'year_level',
-    'field_of_study',
-  ]
-
+  const allowedFields = ['first_name', 'last_name', 'age', 'gender', 'year_level', 'field_of_study']
   const updates: Record<string, unknown> = {}
   for (const field of allowedFields) {
-    if (field in profileUpdates) {
-      updates[field] = profileUpdates[field]
+    if (field in body) {
+      updates[field] = body[field]
     }
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'No editable profile fields were provided' }, { status: 400 })
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
   }
 
-  let beforeProfile: Record<string, unknown> | null = null
-  const { data: existingProfile, error: existingProfileError } = await adminClient
-    .from('user_profiles')
-    .select(allowedFields.join(','))
-    .eq('user_id', userId)
-    .single()
+  if (isUuid) {
+    const { error: profileError } = await adminClient
+      .from('user_profiles')
+      .upsert({ user_id: userId, ...updates })
 
-  if (!existingProfileError && existingProfile) {
-    beforeProfile = existingProfile as unknown as Record<string, unknown>
+    if (profileError) {
+      return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    }
   }
 
-  const { error: updateError } = await adminClient
-    .from('user_profiles')
-    .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+  await adminClient
+    .from('daily_logs')
+    .update(updates)
+    .eq(isUuid ? 'user_id' : 'email', decodeURIComponent(userId))
 
-  if (updateError) {
-    console.error('Profile update error:', updateError)
-    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
-  }
+  await recordAdminAuditEvent({
+    adminId: user.id,
+    adminEmail: user.email ?? 'unknown',
+    action: 'USER_PROFILE_UPDATE',
+    targetUserId: userId,
+    details: { updatedFields: Object.keys(updates) },
+  })
 
-  const afterProfile = beforeProfile ? { ...beforeProfile, ...updates } : updates
-
-  const fieldLabels: Record<string, string> = {
-    first_name: 'First Name',
-    last_name: 'Last Name',
-    age: 'Age',
-    gender: 'Gender',
-    year_level: 'Year Level',
-    field_of_study: 'Field of Study',
-  }
-
-  const changeSummary = Object.keys(updates)
-    .map((field) => {
-      const label = fieldLabels[field] ?? field
-      const before = beforeProfile?.[field] ?? 'N/A'
-      const after = updates[field] ?? 'N/A'
-      return `${label}: "${before}" → "${after}"`
-    })
-    .join(', ')
-
-  // Use the name from BEFORE the edit so the audit log reflects who was changed
-  const targetName = [
-    beforeProfile?.first_name,
-    beforeProfile?.last_name,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  const targetLabel = targetName || userId
-
-  try {
-    await recordAdminAuditEvent({
-      targetUserId: userId,
-      targetEmail: null,
-      eventType: 'profile_update',
-      description: `Admin updated profile for ${targetLabel}: ${changeSummary}`,
-      eventData: {
-        before: beforeProfile,
-        after: afterProfile,
-        changedFields: Object.keys(updates),
-      },
-      actorId: user?.id ?? null,
-      actorEmail: user?.email ?? null,
-    })
-  } catch (auditError) {
-    console.error('Audit logging failed:', auditError)
-  }
-
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, updates })
 }
 
 export async function DELETE(
@@ -278,100 +249,27 @@ export async function DELETE(
   const { userId } = await params
   const isUuid = uuidRegex.test(userId)
 
-  if (!isUuid) {
-    const email = decodeURIComponent(userId)
-    const { data: userLogs } = await adminClient
-      .from('daily_logs')
-      .select('id')
-      .eq('email', email)
-
-    if (userLogs && userLogs.length > 0) {
-      const logIds = userLogs.map(l => l.id)
-      await adminClient.from('predictions').delete().in('log_id', logIds)
+  if (isUuid) {
+    await adminClient.from('daily_logs').delete().eq('user_id', userId)
+    await adminClient.from('predictions').delete().eq('user_id', userId)
+    await adminClient.from('user_profiles').delete().eq('user_id', userId)
+    const { error: authError } = await adminClient.auth.admin.deleteUser(userId)
+    if (authError) {
+      console.warn('Could not delete auth user (may not exist in auth.users):', authError.message)
     }
-
+  } else {
+    const email = decodeURIComponent(userId)
     await adminClient.from('daily_logs').delete().eq('email', email)
     await adminClient.from('survey_responses').delete().eq('email', email)
-
-    try {
-      await recordAdminAuditEvent({
-        targetUserId: null,
-        targetEmail: email,
-        eventType: 'user_deleted',
-        description: `Admin deleted respondent account for ${email}`,
-        eventData: { email },
-        actorId: user?.id ?? null,
-        actorEmail: user?.email ?? null,
-      })
-    } catch { /* non-fatal */ }
-
-    return NextResponse.json({ success: true })
   }
 
-  // Snapshot profile for the audit trail before wiping anything
-  let snapshotEmail: string | null = null
-  let snapshotName: string | null = null
-  try {
-    const { data: authUser } = await adminClient.auth.admin.getUserById(userId)
-    snapshotEmail = authUser?.user?.email ?? null
-
-    const { data: profile } = await adminClient
-      .from('user_profiles')
-      .select('first_name, last_name')
-      .eq('user_id', userId)
-      .single()
-    if (profile) {
-      snapshotName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null
-    }
-  } catch { /* non-fatal — proceed with deletion */ }
-
-  // Delete predictions first (FK → daily_logs)
-  const { error: predErr } = await adminClient
-    .from('predictions')
-    .delete()
-    .eq('user_id', userId)
-  if (predErr) {
-    console.error('Failed to delete predictions:', predErr)
-    return NextResponse.json({ error: 'Failed to delete user predictions' }, { status: 500 })
-  }
-
-  // Delete daily logs
-  const { error: logsErr } = await adminClient
-    .from('daily_logs')
-    .delete()
-    .eq('user_id', userId)
-  if (logsErr) {
-    console.error('Failed to delete daily logs:', logsErr)
-    return NextResponse.json({ error: 'Failed to delete user logs' }, { status: 500 })
-  }
-
-  // Delete user_profiles (if exists)
-  await adminClient.from('user_profiles').delete().eq('user_id', userId)
-
-  // Delete user_settings (if exists)
-  await adminClient.from('user_settings').delete().eq('user_id', userId)
-
-  // Delete the auth account — this is irreversible
-  const { error: authErr } = await adminClient.auth.admin.deleteUser(userId)
-  if (authErr) {
-    console.error('Failed to delete auth user:', authErr)
-    return NextResponse.json({ error: 'Failed to delete user account' }, { status: 500 })
-  }
-
-  // Record audit event
-  try {
-    await recordAdminAuditEvent({
-      targetUserId: userId,
-      targetEmail: snapshotEmail,
-      eventType: 'user_deleted',
-      description: `Admin deleted user account for ${snapshotName ?? snapshotEmail ?? userId}`,
-      eventData: { deletedUserId: userId, email: snapshotEmail, name: snapshotName },
-      actorId: user?.id ?? null,
-      actorEmail: user?.email ?? null,
-    })
-  } catch (auditError) {
-    console.error('Audit logging failed:', auditError)
-  }
+  await recordAdminAuditEvent({
+    adminId: user.id,
+    adminEmail: user.email ?? 'unknown',
+    action: 'USER_DELETE',
+    targetUserId: userId,
+    details: { isUuid, deletedAt: new Date().toISOString() },
+  })
 
   return NextResponse.json({ success: true })
 }
