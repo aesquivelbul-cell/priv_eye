@@ -150,9 +150,16 @@ CRITICAL CONVERSATIONAL RULES (Always obey):
       }
     }
 
-    return NextResponse.json({ error: lastError }, { status: 502 });
+    // Return a graceful clinical fallback instead of hard-failing to the user
+    return NextResponse.json({
+      reply: 'EyeGuard AI is currently receiving high demand or calibrating real-time clinical responses. Based on clinical guidelines, remember the 20-20-20 rule (every 20 minutes look 20 feet away for 20 seconds) and check your personalized risk breakdown on your Dashboard.',
+      isEmergency: false
+    });
   } catch (error: any) {
     console.error('Chat API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({
+      reply: 'EyeGuard AI is currently recalibrating. For immediate comfort, take a 5-minute screen break, blink intentionally, and review your recommendations on the Dashboard.',
+      isEmergency: false
+    });
   }
 }

@@ -258,12 +258,18 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <MetricCard
-                title="Total Logs"
-                value={analytics?.totalLogsRecorded ?? '0'}
-                description="Logs recorded"
-                icon={<Activity className="w-5 h-5 text-primary" />}
-              />
+              <button
+                type="button"
+                onClick={() => router.push('/history')}
+                className="text-left w-full transition-transform hover:-translate-y-0.5 focus:outline-none cursor-pointer"
+              >
+                <MetricCard
+                  title="Total Logs"
+                  value={analytics?.totalLogsRecorded ?? '0'}
+                  description="Logs recorded • View history & report"
+                  icon={<Activity className="w-5 h-5 text-primary" />}
+                />
+              </button>
               <MetricCard
                 title="Logging Streak"
                 value={streak}

@@ -258,7 +258,33 @@ export default function HistoryPage() {
                 <p className="text-muted-foreground text-sm">No visible logs found.</p>
               ) : (
                 <div className="border border-border rounded-xl overflow-hidden bg-card">
-                  <div className="overflow-x-auto">
+                  {/* Mobile Card List (< sm screens) */}
+                  <div className="sm:hidden divide-y divide-border">
+                    {visibleLogs.map(log => (
+                      <div key={log.id} className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-foreground text-sm">{log.date}</span>
+                          {log.risk_level && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${RISK_BADGES[log.risk_level] ?? 'bg-muted text-foreground'}`}>
+                              {log.risk_level}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                          <div>Screen: <span className="text-foreground font-mono">{log.screen_time}h</span></div>
+                          <div>Sleep: <span className="text-foreground font-mono">{log.sleep_hours}h</span></div>
+                          <div>Brightness: <span className="text-foreground font-mono">{log.brightness}%</span></div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground/80">Symptoms: </span>
+                          {activeSymptoms(log)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop / Tablet Table (sm+ screens) */}
+                  <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-muted border-b border-border">
                         <tr>
