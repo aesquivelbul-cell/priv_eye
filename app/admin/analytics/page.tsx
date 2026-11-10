@@ -538,34 +538,27 @@ export default function AdminAnalyticsPage() {
           : (() => {
             const maxSymptomCount = Math.max(...stats.topSymptoms.map(s => s.count), 1);
             return (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {stats.topSymptoms.map(s => {
-                  const pctOfTotal = stats.totalRespondents > 0
-                    ? Math.round((s.count / stats.totalRespondents) * 100)
+                  const pct = stats.totalRespondents > 0
+                    ? Math.round((s.count / stats.totalRespondents) * 1000) / 10
                     : 0;
-                  const barWidth = Math.min((s.count / maxSymptomCount) * 100, 100);
+                  const barWidth = maxSymptomCount > 0 ? (s.count / maxSymptomCount) * 100 : 0;
 
                   return (
-                    <div key={s.symptom} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-[#f97316]/8 last:border-0">
-                      <div className="flex items-center gap-3 min-w-[140px]">
-                        <div className="w-2 h-2 rounded-full bg-[#f97316] flex-shrink-0" />
-                        <span className="text-sm font-medium text-foreground">{symptomLabels[s.symptom] ?? s.symptom}</span>
+                    <div key={s.symptom} className="flex items-center gap-4">
+                      <span className="w-28 text-sm font-medium text-foreground text-right flex-shrink-0">
+                        {symptomLabels[s.symptom] ?? s.symptom}
+                      </span>
+                      <div className="flex-1 bg-[#f97316]/8 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c] rounded-full transition-all duration-500"
+                          style={{ width: `${barWidth}%` }}
+                        />
                       </div>
-                      <div className="flex items-center gap-4 flex-1 max-w-md w-full justify-end">
-                        <div className="flex-1 bg-[#f97316]/10 rounded-full h-2.5 overflow-hidden min-w-[120px]">
-                          <div
-                            className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c] rounded-full transition-all duration-500"
-                            style={{ width: `${barWidth}%` }}
-                          />
-                        </div>
-                        <div className="text-right flex-shrink-0 flex items-baseline justify-end gap-1.5 min-w-[90px]">
-                          <span className="text-sm font-bold text-foreground">{s.count}</span>
-                          <span className="text-xs text-muted-foreground">users</span>
-                          {stats.totalRespondents > 0 && (
-                            <span className="text-[11px] text-muted-foreground/75">({pctOfTotal}%)</span>
-                          )}
-                        </div>
-                      </div>
+                      <span className="w-28 text-sm text-muted-foreground text-right flex-shrink-0">
+                        {s.count} <span className="text-xs">users</span> ({pct}%)
+                      </span>
                     </div>
                   );
                 })}
