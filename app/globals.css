@@ -232,12 +232,31 @@
 
 @media print {
   @page {
-    margin: 0;
+    margin: 1.5cm;
     size: auto;
   }
-  body {
-    padding: 1.5cm;
+
+  /* Force white background everywhere — removes dark app chrome */
+  html,
+  body,
+  div,
+  main {
+    background: #ffffff !important;
+    background-image: none !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* Hide all non-print UI (nav, sidebar, header, footer, buttons, etc.) */
+  header,
+  nav,
+  aside,
+  footer,
+  [data-sidebar],
+  .print\:hidden,
+  button {
+    display: none !important;
   }
 }

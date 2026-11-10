@@ -96,7 +96,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     }`;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col print:bg-white print:block">
 
       {/* ── Top nav ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-[#f97316]/15 bg-[#1a0f07]/80 backdrop-blur-md print:hidden">
@@ -250,8 +250,8 @@ export function MainLayout({ children }: MainLayoutProps) {
       </header>
 
       {/* ── Page content ─────────────────────────────────────────────── */}
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 pb-10">
+      <main className="flex-1 print:block">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 pb-10 print:p-0 print:max-w-none">
           {children}
         </div>
       </main>
