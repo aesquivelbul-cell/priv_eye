@@ -236,25 +236,37 @@
     size: auto;
   }
 
-  /* Force white background everywhere — removes dark app chrome */
+  /* ── Override dark-mode CSS variables on <html class="dark"> ── */
+  html.dark,
+  html {
+    --background: #ffffff;
+    --foreground: #000000;
+    --card: #ffffff;
+    --card-foreground: #000000;
+    --muted: #f3f4f6;
+    --muted-foreground: #374151;
+    --border: #d1d5db;
+    --input: #d1d5db;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+    color-scheme: light;
+  }
+
+  /* ── Force white on html + body (the page canvas) ── */
   html,
-  body,
-  div,
-  main {
+  body {
     background: #ffffff !important;
     background-image: none !important;
-    background-color: #ffffff !important;
     color: #000000 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* Hide all non-print UI (nav, sidebar, header, footer, buttons, etc.) */
+  /* ── Hide all app UI that is not the report ── */
   header,
   nav,
   aside,
   footer,
-  [data-sidebar],
   .print\:hidden,
   button {
     display: none !important;

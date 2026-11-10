@@ -40,8 +40,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background" suppressHydrationWarning>
-      <body className={`font-sans antialiased bg-background text-foreground ${bebasNeue.variable} ${nunito.variable}`}>
+    <html lang="en" className="bg-background print:bg-white" suppressHydrationWarning>
+      <body className={`font-sans antialiased bg-background text-foreground print:bg-white print:[color-scheme:light] ${bebasNeue.variable} ${nunito.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           <AuthProvider>
             {children}
