@@ -535,25 +535,43 @@ export default function AdminAnalyticsPage() {
         <h2 className="text-sm font-semibold text-foreground mb-5">Symptom Frequency</h2>
         {stats.topSymptoms.length === 0
           ? <p className="text-muted-foreground text-sm">No symptom data available.</p>
-          : (
-            <div className="space-y-3">
-              {stats.topSymptoms.map(s => (
-                <div key={s.symptom} className="flex items-center justify-between py-2.5 border-b border-[#f97316]/8 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#f97316]/60 flex-shrink-0" />
-                    <span className="text-sm text-foreground">{symptomLabels[s.symptom] ?? s.symptom}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-[#f97316]/8 rounded-full h-2 overflow-hidden">
-                      <div className="h-full bg-[#f97316]/60 rounded-full"
-                        style={{ width: `${stats.totalRespondents > 0 ? Math.min((s.count / stats.totalRespondents) * 100, 100) : 0}%` }} />
+          : (() => {
+            const maxSymptomCount = Math.max(...stats.topSymptoms.map(s => s.count), 1);
+            return (
+              <div className="space-y-3">
+                {stats.topSymptoms.map(s => {
+                  const pctOfTotal = stats.totalRespondents > 0
+                    ? Math.round((s.count / stats.totalRespondents) * 100)
+                    : 0;
+                  const barWidth = Math.min((s.count / maxSymptomCount) * 100, 100);
+
+                  return (
+                    <div key={s.symptom} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-[#f97316]/8 last:border-0">
+                      <div className="flex items-center gap-3 min-w-[140px]">
+                        <div className="w-2 h-2 rounded-full bg-[#f97316] flex-shrink-0" />
+                        <span className="text-sm font-medium text-foreground">{symptomLabels[s.symptom] ?? s.symptom}</span>
+                      </div>
+                      <div className="flex items-center gap-4 flex-1 max-w-md w-full justify-end">
+                        <div className="flex-1 bg-[#f97316]/10 rounded-full h-2.5 overflow-hidden min-w-[120px]">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c] rounded-full transition-all duration-500"
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
+                        <div className="text-right flex-shrink-0 flex items-baseline justify-end gap-1.5 min-w-[90px]">
+                          <span className="text-sm font-bold text-foreground">{s.count}</span>
+                          <span className="text-xs text-muted-foreground">users</span>
+                          {stats.totalRespondents > 0 && (
+                            <span className="text-[11px] text-muted-foreground/75">({pctOfTotal}%)</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-xs text-muted-foreground w-16 text-right">{s.count} users</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
       </div>
 
       {/* ── Screen time insight ── */}
