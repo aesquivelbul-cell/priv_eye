@@ -105,14 +105,15 @@ export default function AdminModelEvaluationPage() {
             Statistical performance metrics, confusion matrix, feature importance, and CVSQ convergent validity cross-check for thesis panel verification.
           </p>
         </div>
-        <button
+        {/* Retrain Pipeline button hidden per user request */}
+        {/* <button
           onClick={handleRetrain}
           disabled={retraining}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 text-sm font-semibold transition-all disabled:opacity-50"
         >
           <RotateCw className={`w-4 h-4 ${retraining ? 'animate-spin' : ''}`} />
           {retraining ? 'Retraining Pipeline...' : 'Retrain Pipeline'}
-        </button>
+        </button> */}
       </div>
 
       {retrainSuccess && (

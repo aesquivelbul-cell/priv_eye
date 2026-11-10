@@ -55,8 +55,8 @@ export default function AdminSettingsPage() {
         <p className="text-muted-foreground mt-1">System configuration and status overview</p>
       </div>
 
-      {/* ML Model Retrain */}
-      <section aria-labelledby="retrain-heading" className="border border-border rounded-xl p-6">
+      {/* ML Model Retrain - hidden per user request */}
+      {/* <section aria-labelledby="retrain-heading" className="border border-border rounded-xl p-6">
         <h2 id="retrain-heading" className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Cpu className="w-5 h-5" /> ML Model Management
         </h2>
@@ -78,7 +78,7 @@ export default function AdminSettingsPage() {
             {retrainResult.msg}
           </div>
         )}
-      </section>
+      </section> */}
 
       {/* Environment Variables */}
       <section aria-labelledby="env-heading" className="border border-border rounded-xl p-6">

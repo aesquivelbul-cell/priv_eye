@@ -180,10 +180,15 @@ function InfoButton({ term }: { term: string }) {
   if (!def) return null
 
   return (
-    <span className="relative inline-flex items-center ml-1.5 flex-shrink-0">
+    <span
+      className="relative inline-flex items-center ml-1.5 flex-shrink-0"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+    >
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v) }}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         aria-label={`What is ${term}?`}
         className="w-4 h-4 rounded-full flex items-center justify-center text-muted-foreground hover:text-[#f97316] transition-colors focus:outline-none focus:ring-1 focus:ring-[#f97316]"
       >
@@ -191,11 +196,27 @@ function InfoButton({ term }: { term: string }) {
       </button>
       {open && (
         <>
-          <span className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
-          <span className="absolute left-0 top-6 z-50 w-72 rounded-xl border border-[#f97316]/25 bg-card shadow-xl p-4 text-left" role="tooltip">
+          <span
+            className="fixed inset-0 z-40"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            aria-hidden="true"
+          />
+          <span
+            className="absolute left-0 top-6 z-50 w-72 rounded-xl border border-[#f97316]/25 bg-card shadow-xl p-4 text-left"
+            role="tooltip"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
             <span className="flex items-start justify-between gap-2 mb-2">
               <span className="text-sm font-semibold text-[#f97316] leading-snug">{term}</span>
-              <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(false) }} className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-0.5" aria-label="Close">
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                className="text-muted-foreground hover:text-foreground flex-shrink-0 mt-0.5"
+                aria-label="Close"
+              >
                 <X className="w-3.5 h-3.5" />
               </button>
             </span>
