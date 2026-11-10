@@ -1,7 +1,8 @@
 'use client';
 
-import { Menu } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 
@@ -22,9 +23,12 @@ const pageTitles: Record<string, string> = {
 
 export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
 
   useEffect(() => {
+    setMounted(true);
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) setEmail(data.user.email);
@@ -51,8 +55,21 @@ export function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Light / Dark Mode Toggle */}
+        <button
+          onClick={() => mounted && setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[#f97316]/10 transition-colors"
+          aria-label="Toggle theme"
+          title={mounted && theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          suppressHydrationWarning
+        >
+          {mounted
+            ? (theme === 'dark' ? <Sun className="w-4 h-4 text-[#f97316]" /> : <Moon className="w-4 h-4 text-foreground" />)
+            : <span className="w-4 h-4 block" />}
+        </button>
+
         {email && (
-          <span className="text-xs text-muted-foreground hidden sm:block">{email}</span>
+          <span className="text-xs text-muted-foreground hidden sm:block border-l border-border pl-3">{email}</span>
         )}
       </div>
     </header>
