@@ -113,7 +113,7 @@ describe('CSV Export — Property-Based Tests', () => {
   )
 
   it(
-    'Property 10: CSV column completeness — header contains all 18 required columns in the correct order',
+    'Property 10: CSV column completeness — header contains all required DAILY_LOG_COLUMNS in the correct order',
     () => {
       fc.assert(
         fc.property(arbitraryLogRows, (rows) => {
@@ -125,17 +125,11 @@ describe('CSV Export — Property-Based Tests', () => {
           expect(parsed.length).toBeGreaterThanOrEqual(1)
           const header = parsed[0]
 
-          // Must have exactly 18 columns
-          expect(header.length).toBe(18)
+          // Must have all columns matching DAILY_LOG_COLUMNS
+          expect(header.length).toBe(DAILY_LOG_COLUMNS.length)
 
           // Must match the required order exactly
-          const expectedColumns = [
-            'id', 'user_id', 'date', 'email', 'age', 'gender',
-            'year_level', 'field_of_study', 'screen_time', 'breaks_taken',
-            'eye_strain', 'headaches', 'blurry_vision', 'dry_eyes',
-            'brightness', 'sleep_hours', 'risk_level', 'created_at',
-          ]
-          expect(header).toEqual(expectedColumns)
+          expect(header).toEqual([...DAILY_LOG_COLUMNS])
         }),
         { numRuns: 100 },
       )

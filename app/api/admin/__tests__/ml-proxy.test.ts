@@ -44,18 +44,28 @@ describe('GET /api/admin/ml-status — Flask proxy', () => {
   })
 
   it('forwards the Flask JSON response to the client', async () => {
-    const flaskPayload = { modelLoaded: true, trainingRows: 500, newLogsSinceRetrain: 12 }
+    const rawFlaskPayload = {
+      model_loaded: true,
+      supabase_rows: 500,
+      new_logs_since_retrain: 12,
+      retrain_threshold: 10,
+    }
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: vi.fn().mockResolvedValue(flaskPayload),
+      json: vi.fn().mockResolvedValue(rawFlaskPayload),
     })
 
     const { GET } = await import('../ml-status/route')
     const res = await GET()
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body).toEqual(flaskPayload)
+    expect(body).toEqual({
+      modelLoaded: true,
+      trainingRows: 500,
+      newLogsSinceRetrain: 12,
+      retrainThreshold: 10,
+    })
   })
 
   it('returns 503 with error message when Flask is unreachable', async () => {

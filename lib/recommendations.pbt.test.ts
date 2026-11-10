@@ -247,9 +247,9 @@ describe('Property 6: empty-table fallback is constant', () => {
     })
 
     const EXPECTED_TITLES = [
-      'Follow the 20-20-20 rule',
-      'Maintain optimal screen brightness (60-80%)',
-      'Get 7-9 hours of sleep per night',
+      'Adjust your monitor distance',
+      'Maintain optimal screen brightness (60–80%)',
+      'Get 7–9 hours of sleep per night',
     ]
 
     await fc.assert(

@@ -97,9 +97,9 @@ describe('selectRecommendations', () => {
 
     const result = await selectRecommendations(baseInput)
     expect(result).toHaveLength(3)
-    expect(result[0].title).toBe('Follow the 20-20-20 rule')
-    expect(result[1].title).toBe('Maintain optimal screen brightness (60-80%)')
-    expect(result[2].title).toBe('Get 7-9 hours of sleep per night')
+    expect(result[0].title).toBe('Adjust your monitor distance')
+    expect(result[1].title).toBe('Maintain optimal screen brightness (60–80%)')
+    expect(result[2].title).toBe('Get 7–9 hours of sleep per night')
   })
 
   it('returns hardcoded fallback on Supabase error', async () => {
@@ -107,7 +107,7 @@ describe('selectRecommendations', () => {
 
     const result = await selectRecommendations(baseInput)
     expect(result).toHaveLength(3)
-    expect(result[0].title).toBe('Follow the 20-20-20 rule')
+    expect(result[0].title).toBe('Adjust your monitor distance')
   })
 
   it('every result object has non-empty title, description, and category', async () => {

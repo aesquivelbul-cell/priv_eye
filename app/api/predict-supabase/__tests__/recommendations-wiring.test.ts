@@ -147,10 +147,13 @@ describe('predict-supabase route — recommendations wiring', () => {
     const { POST } = await import('../route')
 
     const body = {
-      screenTime: 9,
+      academicScreenTime: '6–8 hours', // 7h
+      nonAcademicScreenTime: '1–3 hours', // 2h -> screenTime = 9h
       sleepHours: 5,
-      brightness: 90,
-      symptoms: ['eyeStrain', 'headaches', 'dryEyes'],
+      screenBrightness: 'High (76–100%)', // brightness = 90
+      sym_difficultyFocusing: 'Sometimes (3-4 times a week)', // eyeStrain = 1
+      sym_headaches: 'Sometimes (3-4 times a week)', // headaches = 1
+      sym_dryEyes: 'Sometimes (3-4 times a week)', // dryEyes = 1
       breaksTaken: 1,
       email: 'test@example.com',
     }
