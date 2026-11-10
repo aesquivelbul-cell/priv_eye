@@ -464,14 +464,14 @@ export default function AdminAnalyticsPage() {
         <div className="space-y-4">
           {riskLevels.map(level => {
             const pct = stats.riskDistribution[level]
-            const barWidth = maxRiskPct > 0 ? (pct / maxRiskPct) * 100 : 0
+            const barWidth = Math.min(Math.max(pct, 0), 100)
             return (
               <div key={level} className="flex items-center gap-4">
-                <span className={`w-20 text-sm font-medium text-right flex-shrink-0 ${riskTextColors[level]}`}>{level}</span>
+                <span className={`w-28 text-sm font-medium text-right flex-shrink-0 ${riskTextColors[level]}`}>{level}</span>
                 <div className="flex-1 bg-[#f97316]/8 rounded-full h-3 overflow-hidden">
                   <div className={`h-full rounded-full transition-all duration-500 ${riskColors[level]}`} style={{ width: `${barWidth}%` }} />
                 </div>
-                <span className="w-12 text-sm text-muted-foreground text-right flex-shrink-0">{pct}%</span>
+                <span className="w-28 text-sm text-muted-foreground text-right flex-shrink-0">{pct}%</span>
               </div>
             )
           })}
@@ -535,36 +535,33 @@ export default function AdminAnalyticsPage() {
         <h2 className="text-sm font-semibold text-foreground mb-5">Symptom Frequency</h2>
         {stats.topSymptoms.length === 0
           ? <p className="text-muted-foreground text-sm">No symptom data available.</p>
-          : (() => {
-            const maxSymptomCount = Math.max(...stats.topSymptoms.map(s => s.count), 1);
-            return (
-              <div className="space-y-4">
-                {stats.topSymptoms.map(s => {
-                  const pct = stats.totalRespondents > 0
-                    ? Math.round((s.count / stats.totalRespondents) * 1000) / 10
-                    : 0;
-                  const barWidth = maxSymptomCount > 0 ? (s.count / maxSymptomCount) * 100 : 0;
+          : (
+            <div className="space-y-4">
+              {stats.topSymptoms.map(s => {
+                const pct = stats.totalRespondents > 0
+                  ? Math.round((s.count / stats.totalRespondents) * 1000) / 10
+                  : 0;
+                const barWidth = Math.min(Math.max(pct, 0), 100);
 
-                  return (
-                    <div key={s.symptom} className="flex items-center gap-4">
-                      <span className="w-28 text-sm font-medium text-foreground text-right flex-shrink-0">
-                        {symptomLabels[s.symptom] ?? s.symptom}
-                      </span>
-                      <div className="flex-1 bg-[#f97316]/8 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c] rounded-full transition-all duration-500"
-                          style={{ width: `${barWidth}%` }}
-                        />
-                      </div>
-                      <span className="w-28 text-sm text-muted-foreground text-right flex-shrink-0">
-                        {s.count} <span className="text-xs">users</span> ({pct}%)
-                      </span>
+                return (
+                  <div key={s.symptom} className="flex items-center gap-4">
+                    <span className="w-28 text-sm font-medium text-foreground text-right flex-shrink-0">
+                      {symptomLabels[s.symptom] ?? s.symptom}
+                    </span>
+                    <div className="flex-1 bg-[#f97316]/8 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#f97316] to-[#fb923c] rounded-full transition-all duration-500"
+                        style={{ width: `${barWidth}%` }}
+                      />
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                    <span className="w-28 text-sm text-muted-foreground text-right flex-shrink-0">
+                      {s.count} <span className="text-xs">users</span> ({pct}%)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
       </div>
 
       {/* ── Screen time insight ── */}
