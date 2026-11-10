@@ -74,92 +74,29 @@ export async function GET() {
   try { adminClient = createAdminClient() }
   catch { return NextResponse.json({ error: 'Server configuration error' }, { status: 500 }) }
 
-  // Fetch both tables in parallel
-  const [logsRes, surveysRes] = await Promise.all([
-    adminClient.from('daily_logs').select([
-      'id', 'date', 'email', 'age', 'gender', 'year_level', 'field_of_study',
-      'academic_screen_time', 'non_academic_screen_time', 'screen_time',
-      'primary_device', 'continuous_screen_use', 'online_classes_per_day',
-      'follows_20_20_20', 'blue_light_filter', 'screen_brightness',
-      'dark_room_use', 'screen_distance', 'wears_glasses', 'blue_light_glasses',
-      'break_frequency', 'sleep_hours',
-      'sym_dry_eyes', 'sym_eye_itchiness', 'sym_blurred_vision', 'sym_headaches',
-      'sym_eye_irritation', 'sym_light_sensitivity', 'sym_difficulty_focusing',
-      'sym_neck_shoulder_pain', 'sym_mental_fatigue', 'sym_difficulty_concentrating',
-      'overall_eye_strain', 'digital_fatigue_frequency', 'primary_symptom_history',
-      'cvsq_visual_complaints', 'cvsq_ocular_complaints', 'cvsq_extraocular_complaints',
-      'cvsq_frequency', 'cvsq_screen_associated',
-      'risk_level', 'created_at',
-    ].join(', ')).order('date', { ascending: false }),
-    adminClient.from('survey_responses').select([
-      'response_timestamp', 'email', 'eg_age', 'eg_gender', 'eg_year_level', 'eg_field_of_study',
-      'cvsq_q1_visual_raw', 'cvsq_q2_ocular_raw', 'cvsq_q3_extraocular_raw',
-      'cvsq_q4_frequency', 'cvsq_q5_screen_associated', 'cvsq_total', 'cvsq_status',
-      'eg_academic_screen_time', 'eg_non_academic_screen_time', 'eg_primary_device',
-      'eg_continuous_screen_use', 'eg_online_classes_per_day',
-      'eg_follows_20_20_20', 'eg_blue_light_filter', 'eg_screen_brightness',
-      'eg_dark_room_use', 'eg_screen_distance', 'eg_wears_glasses', 'eg_blue_light_glasses',
-      'eg_break_frequency', 'eg_sleep_hours',
-      'sym_dry_eyes', 'sym_eye_itchiness', 'sym_blurred_vision', 'sym_headaches',
-      'sym_eye_irritation', 'sym_light_sensitivity', 'sym_difficulty_focusing',
-      'sym_neck_shoulder_pain', 'sym_mental_fatigue', 'sym_difficulty_concentrating',
-      'eg_overall_eye_strain', 'eg_digital_fatigue_frequency', 'eg_primary_symptom_history',
-    ].join(', ')).order('response_timestamp', { ascending: true }),
-  ])
+  // Fetch only daily_logs — survey_responses are already migrated into daily_logs
+  const logsRes = await adminClient.from('daily_logs').select([
+    'id', 'date', 'email', 'age', 'gender', 'year_level', 'field_of_study',
+    'academic_screen_time', 'non_academic_screen_time', 'screen_time',
+    'primary_device', 'continuous_screen_use', 'online_classes_per_day',
+    'follows_20_20_20', 'blue_light_filter', 'screen_brightness',
+    'dark_room_use', 'screen_distance', 'wears_glasses', 'blue_light_glasses',
+    'break_frequency', 'sleep_hours',
+    'sym_dry_eyes', 'sym_eye_itchiness', 'sym_blurred_vision', 'sym_headaches',
+    'sym_eye_irritation', 'sym_light_sensitivity', 'sym_difficulty_focusing',
+    'sym_neck_shoulder_pain', 'sym_mental_fatigue', 'sym_difficulty_concentrating',
+    'overall_eye_strain', 'digital_fatigue_frequency', 'primary_symptom_history',
+    'cvsq_visual_complaints', 'cvsq_ocular_complaints', 'cvsq_extraocular_complaints',
+    'cvsq_frequency', 'cvsq_screen_associated',
+    'risk_level', 'created_at',
+  ].join(', ')).order('date', { ascending: false })
 
   if (logsRes.error) {
     return NextResponse.json({ error: 'Failed to fetch daily logs' }, { status: 500 })
   }
 
-  // ── Map survey_responses rows first (399 imported research responses) ───────
-  const surveyRows = (((surveysRes.data ?? []) as unknown as Record<string, unknown>[]).map(r => ({
-    'Source':                       'Live Submission',
-    'Date':                         s(r.response_timestamp)?.split('T')[0] ?? '',
-    'Email':                        s(r.email),
-    'Age':                          s(r.eg_age),
-    'Gender':                       s(r.eg_gender),
-    'Year Level':                   s(r.eg_year_level),
-    'Field of Study':               s(r.eg_field_of_study),
-    'CVSQ Visual':                  s(r.cvsq_q1_visual_raw),
-    'CVSQ Ocular':                  s(r.cvsq_q2_ocular_raw),
-    'CVSQ Extraocular':             s(r.cvsq_q3_extraocular_raw),
-    'CVSQ Frequency':               s(r.cvsq_q4_frequency),
-    'CVSQ Screen':                  s(r.cvsq_q5_screen_associated),
-    'CVSQ Total':                   r.cvsq_total ?? '',
-    'CVSQ Status':                  s(r.cvsq_status),
-    'Academic Screen Time':         s(r.eg_academic_screen_time),
-    'Non-Academic Screen Time':     s(r.eg_non_academic_screen_time),
-    'Screen Time (hrs)':            '',
-    'Primary Device':               s(r.eg_primary_device),
-    'Continuous Use':               s(r.eg_continuous_screen_use),
-    'Online Classes':               s(r.eg_online_classes_per_day),
-    '20-20-20':                     s(r.eg_follows_20_20_20),
-    'Blue Light Filter':            s(r.eg_blue_light_filter),
-    'Screen Brightness':            s(r.eg_screen_brightness),
-    'Dark Room Use':                s(r.eg_dark_room_use),
-    'Screen Distance':              s(r.eg_screen_distance),
-    'Wears Glasses':                s(r.eg_wears_glasses),
-    'Blue Light Glasses':           s(r.eg_blue_light_glasses),
-    'Break Frequency':              s(r.eg_break_frequency),
-    'Sleep Hours':                  s(r.eg_sleep_hours),
-    'Sym Dry Eyes':                 s(r.sym_dry_eyes),
-    'Sym Eye Itchiness':            s(r.sym_eye_itchiness),
-    'Sym Blurred Vision':           s(r.sym_blurred_vision),
-    'Sym Headaches':                s(r.sym_headaches),
-    'Sym Eye Irritation':           s(r.sym_eye_irritation),
-    'Sym Light Sensitivity':        s(r.sym_light_sensitivity),
-    'Sym Difficulty Focusing':      s(r.sym_difficulty_focusing),
-    'Sym Neck Shoulder':            s(r.sym_neck_shoulder_pain),
-    'Sym Mental Fatigue':           s(r.sym_mental_fatigue),
-    'Sym Difficulty Concentrating': s(r.sym_difficulty_concentrating),
-    'Overall Eye Strain':           s(r.eg_overall_eye_strain),
-    'Digital Fatigue Frequency':    s(r.eg_digital_fatigue_frequency),
-    'Primary Symptom History':      s(r.eg_primary_symptom_history),
-    'Risk Level':                   '',
-  }))) as unknown as Record<string, CellValue>[]
-
-  // ── Map daily_logs rows (live system submissions) ─────────────────────────
-  const dailyRows = (((logsRes.data ?? []) as unknown as Record<string, unknown>[]).map(r => {
+  // ── Map daily_logs rows (all submissions — migrated survey + live) ────────
+  const allRows = (((logsRes.data ?? []) as unknown as Record<string, unknown>[]).map(r => {
     // Parse CVSQ complaints JSON arrays
     let cvsqVisual = '', cvsqOcular = '', cvsqExtra = ''
     try { cvsqVisual = JSON.parse(s(r.cvsq_visual_complaints) || '[]').join(', ') } catch { cvsqVisual = s(r.cvsq_visual_complaints) }
@@ -212,9 +149,6 @@ export async function GET() {
       'Risk Level':                   s(r.risk_level),
     }
   })) as unknown as Record<string, CellValue>[]
-
-  // ── Combine: survey responses first, then live submissions ────────────────
-  const allRows = [...surveyRows, ...dailyRows]
 
   try {
     const xlsx  = generateXlsx(allRows, COLUMNS, 'EyeGuard All Responses')
