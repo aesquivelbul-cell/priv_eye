@@ -574,9 +574,21 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
 
   const validate = (p: number): string | null => {
     switch (p) {
-      case 0: return null;
-      case 1: return null;
-      case 2: return null;
+      case 0:
+        if (!cvsq.cvsq_visual || cvsq.cvsq_visual.length === 0) {
+          return 'Please select at least one visual complaint or choose "None of the above" to continue (Q1).';
+        }
+        return null;
+      case 1:
+        if (!cvsq.cvsq_ocular || cvsq.cvsq_ocular.length === 0) {
+          return 'Please select at least one ocular surface complaint or choose "None of the above" to continue (Q2).';
+        }
+        return null;
+      case 2:
+        if (!cvsq.cvsq_extraocular || cvsq.cvsq_extraocular.length === 0) {
+          return 'Please select at least one extraocular complaint or choose "None of the above" to continue (Q3).';
+        }
+        return null;
       case 3:
         if (!cvsq.cvsq_frequency) return 'Please select the frequency of your complaints (Q4).';
         if (!cvsq.cvsq_screen_associated) return 'Please answer whether your complaints are screen-associated (Q5).';
@@ -691,8 +703,10 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
         <div className="space-y-6">
           <PartBanner part="Part 1 of 2 — CVS-Smart Questionnaire" title="Visual Complaints" subtitle="Section 1 of 5 · Part 1" />
           <div className="rounded-lg bg-[#f97316]/8 dark:bg-[#f97316]/10 border border-[#f97316]/25 p-4">
-            <p className="text-base font-semibold text-foreground">Q1. Out of the following visual complaints, how many do you suffer from?</p>
-            <p className="text-xs text-muted-foreground mt-1">Select all that apply. It is okay to select none.</p>
+            <p className="text-base font-semibold text-foreground">
+              Q1. Out of the following visual complaints, how many do you suffer from? <span className="text-red-500">*</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Select all that apply, or select &quot;None of the above&quot; if you experience none.</p>
           </div>
           <CheckboxGroup items={VISUAL_COMPLAINTS} selected={cvsq.cvsq_visual} showNoneOption={true} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_visual: v })); setError(''); }} />
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
@@ -709,8 +723,10 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
         <div className="space-y-6">
           <PartBanner part="Part 1 of 2 — CVS-Smart Questionnaire" title="Ocular Surface Complaints" subtitle="Section 2 of 5 · Part 1" />
           <div className="rounded-lg bg-[#f97316]/8 dark:bg-[#f97316]/10 border border-[#f97316]/25 p-4">
-            <p className="text-base font-semibold text-foreground">Q2. Out of the following ocular surface complaints, how many do you suffer from?</p>
-            <p className="text-xs text-muted-foreground mt-1">Select all that apply. It is okay to select none.</p>
+            <p className="text-base font-semibold text-foreground">
+              Q2. Out of the following ocular surface complaints, how many do you suffer from? <span className="text-red-500">*</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Select all that apply, or select &quot;None of the above&quot; if you experience none.</p>
           </div>
           <CheckboxGroup items={OCULAR_SURFACE_COMPLAINTS} selected={cvsq.cvsq_ocular} showNoneOption={true} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_ocular: v })); setError(''); }} />
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
@@ -727,8 +743,10 @@ export function ScreenTimeForm({ onSubmit, onProfileUpdate, email, defaultValues
         <div className="space-y-6">
           <PartBanner part="Part 1 of 2 — CVS-Smart Questionnaire" title="Extraocular Complaints" subtitle="Section 3 of 5 · Part 1" />
           <div className="rounded-lg bg-[#f97316]/8 dark:bg-[#f97316]/10 border border-[#f97316]/25 p-4">
-            <p className="text-base font-semibold text-foreground">Q3. Out of the following extraocular complaints, how many do you suffer from?</p>
-            <p className="text-xs text-muted-foreground mt-1">Select all that apply. It is okay to select none.</p>
+            <p className="text-base font-semibold text-foreground">
+              Q3. Out of the following extraocular complaints, how many do you suffer from? <span className="text-red-500">*</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Select all that apply, or select &quot;None of the above&quot; if you experience none.</p>
           </div>
           <CheckboxGroup items={EXTRAOCULAR_COMPLAINTS} selected={cvsq.cvsq_extraocular} showNoneOption={true} onChange={(v) => { setCvsq((c) => ({ ...c, cvsq_extraocular: v })); setError(''); }} />
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
