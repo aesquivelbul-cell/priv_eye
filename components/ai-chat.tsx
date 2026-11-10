@@ -133,12 +133,16 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevUserRef = useRef<string | null>(null);
 
-  // Clean up legacy unkeyed session key on initial mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('eyeguard_user_chat_session');
+  const adjustHeight = () => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    adjustHeight();
+  }, [input]);
 
   // Monitor active user account
   useEffect(() => {
@@ -370,17 +374,17 @@ export function AiChat({ mode, initialMessage }: AiChatProps) {
             onKeyDown={handleKeyDown}
             placeholder="Ask a question about eye health, 20-20-20…"
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 max-h-28 overflow-y-auto"
-            style={{ minHeight: '40px' }}
+            className="flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 max-h-28 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ minHeight: '42px', height: '42px' }}
             disabled={isLoading}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
             aria-label="Send"
-            className="flex-shrink-0 w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-35 disabled:cursor-not-allowed"
+            className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-35 disabled:cursor-not-allowed"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-4 h-4" />
           </button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-2 text-center flex items-center justify-center gap-1">
