@@ -50,6 +50,10 @@ interface DailyLog {
   primary_symptom_history?: string
   cvsq_score?: number | null
   cvsq_status?: string | null
+  age?: number | string | null
+  gender?: string | null
+  year_level?: string | null
+  field_of_study?: string | null
 }
 
 interface SurveyResponse {
