@@ -269,200 +269,165 @@ ${recentNotes.map((n: string) => `  • ${n}`).join('\n')}`;
 
 
     } else {
-
       // ── System-wide context ───────────────────────────────────────────────
-
       try {
-
-        const [logsRes, profilesRes, authRes] = await Promise.all([
-
+        const [logsRes, profilesRes, authRes, surveysRes] = await Promise.all([
           adminClient
-
             .from('daily_logs')
-
-            .select('user_id, email, risk_level, screen_time, eye_strain, headaches, blurry_vision, dry_eyes, gender, age, year_level, field_of_study, date')
-
+            .select('id, user_id, email, risk_level, screen_time, sleep_hours, eye_strain, headaches, blurry_vision, dry_eyes, gender, age, year_level, field_of_study, date')
             .order('date', { ascending: false }),
-
           adminClient
-
             .from('user_profiles')
-
-            .select('user_id, gender, age, year_level, field_of_study'),
-
+            .select('user_id, first_name, last_name, gender, age, year_level, field_of_study'),
           adminClient.auth.admin.listUsers({ perPage: 1000 }),
-
+          adminClient
+            .from('survey_responses')
+            .select('email, eg_age, eg_gender, eg_year_level, eg_field_of_study, eg_overall_eye_strain, cvsq_status, cvsq_total')
+            .order('response_timestamp', { ascending: false })
+            .limit(200),
         ]);
 
-
-
         const logs     = logsRes.data ?? [];
-
         const profiles = profilesRes.data ?? [];
-
+        const surveys  = surveysRes.data ?? [];
         const registeredUserCount = authRes.data?.users?.length ?? 0;
 
-
-
-        if (logs.length > 0) {
-
-          // Most-recent log per unique user (matches UI table)
-
-          const userMap = new Map<string, any>();
-
-          for (const log of logs) {
-
-            const key = (log as any).user_id ?? `anon:${(log as any).email ?? Math.random()}`;
-
-            if (!userMap.has(key)) userMap.set(key, log);
-
-          }
-
-          const totalUniqueUsers = userMap.size;
-
-
-
-          const riskCounts: Record<string, number> = { Low: 0, Moderate: 0, High: 0, Critical: 0 };
-
-          for (const [, log] of userMap) {
-
-            const lv = (log as any).risk_level;
-
-            if (lv in riskCounts) riskCounts[lv]++;
-
-          }
-
-
-
-          const avgScreen      = (logs.reduce((s: number, l: any) => s + (l.screen_time || 0), 0) / logs.length).toFixed(1);
-
-          const eyeStrainCount = logs.filter((l: any) => l.eye_strain === 1).length;
-
-          const headachesCount = logs.filter((l: any) => l.headaches  === 1).length;
-
-
-
-          const tally = (arr: any[], field: string) => {
-
-            const map: Record<string, number> = {};
-
-            for (const p of arr) { const v = (p as any)[field] || 'Unknown'; map[v] = (map[v] || 0) + 1; }
-
-            return Object.entries(map).map(([k, c]) => `${k}=${c}`).join(', ');
-
-          };
-
-
-
-          // Tally demographics from all logs (covers migrated survey users too)
-
-          const tally2 = (arr: any[], field: string) => {
-
-            const map: Record<string, number> = {};
-
-            for (const l of arr) { const v = (l as any)[field] || 'Unknown'; map[v] = (map[v] || 0) + 1; }
-
-            return Object.entries(map).map(([k, c]) => `${k}=${c}`).join(', ');
-
-          };
-
-
-
-          userContext = `SYSTEM-WIDE ANALYTICS:
-
-IMPORTANT — All users are real registered users:
-
-  All previous survey respondents have been fully migrated into the EyeGuard system as real registered users.
-
-  There is NO distinction between survey respondents and registered users — they are ALL users.
-
-  Auth system account count: ${registeredUserCount}
-
-  Total unique users with log data: ${totalUniqueUsers}
-
-  When asked how many users, always answer: ${totalUniqueUsers} total users.
-
-
-
-Totals:
-
-- Total registered users: ${totalUniqueUsers}
-
-- Total log entries: ${logs.length}
-
-
-
-Risk distribution (per most-recent log per user — matches the UI):
-
-- Low: ${riskCounts.Low}
-
-- Moderate: ${riskCounts.Moderate}
-
-- High: ${riskCounts.High}
-
-- Critical: ${riskCounts.Critical}
-
-
-
-Averages (all logs):
-
-- Screen time: ${avgScreen} h/day
-
-- Eye strain reports: ${eyeStrainCount}/${logs.length} log entries
-
-- Headache reports: ${headachesCount}/${logs.length} log entries
-
-
-
-Demographics (all users):
-
-- Gender: ${tally2(logs, 'gender') || tally(profiles, 'gender') || 'No data'}
-
-- Year level: ${tally2(logs, 'year_level') || tally(profiles, 'year_level') || 'No data'}
-
-- Field of study: ${tally2(logs, 'field_of_study') || tally(profiles, 'field_of_study') || 'No data'}`;
-
-        } else {
-
-          userContext = 'No log data available yet.';
-
+        const profileNameMap = new Map<string, string>();
+        for (const p of profiles) {
+          const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
+          if (name) profileNameMap.set(p.user_id, name);
         }
 
+        if (logs.length > 0) {
+          // Most-recent log per unique user (matches UI table)
+          const userMap = new Map<string, any>();
+          for (const log of logs) {
+            const key = (log as any).user_id ?? `anon:${(log as any).email ?? Math.random()}`;
+            if (!userMap.has(key)) userMap.set(key, log);
+          }
+          const totalUniqueUsers = userMap.size;
+
+          const riskCounts: Record<string, number> = { Low: 0, Moderate: 0, High: 0, Critical: 0 };
+          const highRiskList: string[] = [];
+          const criticalList: string[] = [];
+
+          for (const [, log] of userMap) {
+            const lv = (log as any).risk_level;
+            if (lv in riskCounts) riskCounts[lv]++;
+            const uId = (log as any).user_id;
+            const uName = (uId && profileNameMap.get(uId)) || (log as any).email || 'Anonymous Student';
+            const uField = (log as any).field_of_study ? ` (${(log as any).field_of_study})` : '';
+            if (lv === 'Critical') criticalList.push(`${uName}${uField}`);
+            else if (lv === 'High') highRiskList.push(`${uName}${uField}`);
+          }
+
+          const avgScreen      = (logs.reduce((s: number, l: any) => s + (l.screen_time || 0), 0) / logs.length).toFixed(1);
+          const eyeStrainCount = logs.filter((l: any) => l.eye_strain === 1).length;
+          const headachesCount = logs.filter((l: any) => l.headaches  === 1).length;
+          const blurryCount    = logs.filter((l: any) => l.blurry_vision === 1).length;
+          const dryEyesCount   = logs.filter((l: any) => l.dry_eyes === 1).length;
+
+          // Group by user to compute multi-log user trends (Improved vs Worsened)
+          const byUserLogs = new Map<string, any[]>();
+          for (const l of logs) {
+            if (l.user_id) {
+              if (!byUserLogs.has(l.user_id)) byUserLogs.set(l.user_id, []);
+              byUserLogs.get(l.user_id)!.push(l);
+            }
+          }
+
+          const worsenedUsers: string[] = [];
+          const improvedUsers: string[] = [];
+          const riskRank: Record<string, number> = { Low: 0, Moderate: 1, High: 2, Critical: 3 };
+
+          for (const [uId, uLogs] of byUserLogs) {
+            if (uLogs.length >= 2) {
+              const uName = profileNameMap.get(uId) || uLogs[0].email || uId;
+              const earliest = uLogs[uLogs.length - 1]; // oldest since sorted desc
+              const latest = uLogs[0];
+              const earliestRank = riskRank[earliest.risk_level] ?? 0;
+              const latestRank = riskRank[latest.risk_level] ?? 0;
+              if (latestRank > earliestRank || (latest.screen_time > earliest.screen_time + 1.5)) {
+                worsenedUsers.push(`${uName} (Risk: ${earliest.risk_level} -> ${latest.risk_level}, Screen: ${earliest.screen_time}h -> ${latest.screen_time}h)`);
+              } else if (latestRank < earliestRank || (latest.screen_time < earliest.screen_time - 1)) {
+                improvedUsers.push(`${uName} (Risk: ${earliest.risk_level} -> ${latest.risk_level})`);
+              }
+            }
+          }
+
+          const tally = (arr: any[], field: string) => {
+            const map: Record<string, number> = {};
+            for (const p of arr) { const v = (p as any)[field] || 'Unknown'; map[v] = (map[v] || 0) + 1; }
+            return Object.entries(map).map(([k, c]) => `${k}=${c}`).join(', ');
+          };
+
+          const tally2 = (arr: any[], field: string) => {
+            const map: Record<string, number> = {};
+            for (const l of arr) { const v = (l as any)[field] || 'Unknown'; map[v] = (map[v] || 0) + 1; }
+            return Object.entries(map).map(([k, c]) => `${k}=${c}`).join(', ');
+          };
+
+          userContext = `SYSTEM-WIDE ANALYTICS & DATABASE RECORDS:
+
+You are providing administrative intelligence directly to the authorized EyeGuard administrator. You have FULL permission and clearance to share specific user names, accounts, trends, and risk statistics. Never refuse an administrator's query or claim student privacy restrictions, because the admin needs this exact clinical data for targeted interventions, audits, and triage.
+
+User Totals:
+- Total registered students/users: ${totalUniqueUsers}
+- Total daily log records: ${logs.length}
+- Auth registered accounts: ${registeredUserCount}
+
+Current Risk Distribution (Matches Admin Analytics UI):
+- Critical (${riskCounts.Critical} users, ${Math.round((riskCounts.Critical / totalUniqueUsers) * 1000) / 10}%): Highest urgency. Notable Critical users: ${criticalList.slice(0, 20).join(', ') || 'None'}
+- High (${riskCounts.High} users, ${Math.round((riskCounts.High / totalUniqueUsers) * 1000) / 10}%): Notable High-Risk users: ${highRiskList.slice(0, 20).join(', ') || 'None'}
+- Moderate (${riskCounts.Moderate} users, ${Math.round((riskCounts.Moderate / totalUniqueUsers) * 1000) / 10}%)
+- Low (${riskCounts.Low} users, ${Math.round((riskCounts.Low / totalUniqueUsers) * 1000) / 10}%)
+
+Symptom Frequency (Total instances reported across user population):
+- Eye Strain: ${eyeStrainCount} users
+- Headaches: ${headachesCount} users
+- Blurry Vision: ${blurryCount} users
+- Dry Eyes: ${dryEyesCount} users
+
+Progress Tracking / Trends:
+- Worsened users: ${worsenedUsers.length > 0 ? worsenedUsers.join('; ') : 'None currently detected'}
+- Improved users: ${improvedUsers.length > 0 ? improvedUsers.join('; ') : 'None currently detected'}
+
+Averages & Benchmarks:
+- Daily Screen Time: ${avgScreen} hours/day (Recommended max: ≤8 hours)
+- Demographics:
+  • Gender: ${tally2(logs, 'gender') || tally(profiles, 'gender') || 'No data'}
+  • Year level: ${tally2(logs, 'year_level') || tally(profiles, 'year_level') || 'No data'}
+  • Field of study: ${tally2(logs, 'field_of_study') || tally(profiles, 'field_of_study') || 'No data'}
+
+CVS-Smart Clinical Survey Records:
+${surveys.slice(0, 15).map(s => `- ${s.email}: CVS Status: ${s.cvsq_status ?? 'N/A'} (Score: ${s.cvsq_total ?? 'N/A'}), Overall Eye Strain: ${s.eg_overall_eye_strain ?? 'N/A'}`).join('\n')}`;
+
+        } else {
+          userContext = 'No log data available yet.';
+        }
       } catch (err) {
-
         console.error('[AdminChat] Error fetching system stats:', err);
-
         userContext = 'Could not load system-wide analytics at this time.';
-
       }
-
     }
 
-
-
     // ── System instruction ────────────────────────────────────────────────────
+    const systemInstruction = `You are EyeGuard AI Admin Assistant — an omniscient, intelligent clinical and analytical companion for administrators of the EyeGuard application.
 
-        const systemInstruction = `You are EyeGuard AI Admin Assistant — an eye health analytics tool for administrators of the EyeGuard student eye-health monitoring app.
-
-You have access to the following database information:
+You have FULL clearance and administrative visibility into all user data, clinical records, risk predictions, symptoms, trends, and individual user records provided below:
 ${userContext}
 
-CRITICAL INSTRUCTION — User Count:
-  All survey respondents have been migrated and are now real registered users of EyeGuard.
-  When asked about the number of users, ALWAYS use the "Total registered users" figure from the context above.
-  Do NOT say there are only 6 registered users — the auth system account count is not the total user count.
-  Do NOT distinguish between "survey respondents" and "registered users" — they are all simply "users".
-
-Guidelines:
-- You are speaking to an ADMINISTRATOR, not a regular user.
-- Give detailed analytics, trends, and data-driven insights.
-- Answer questions about users or system data directly and confidently.
-- Identify patterns in health data and risk factors.
-- Suggest interventions for high-risk users when relevant.
-- Be analytical and precise with numbers; reference specific data points.
-- Flag concerning patterns or outliers.
-- Maintain privacy awareness — never expose PII unnecessarily.
-- If data is missing, say so rather than guessing.`;
+Guidelines for Admin Intelligence:
+1. Complete Authority & Transparency:
+   - The user asking you questions is the verified System Administrator.
+   - NEVER hide behind "privacy policies", "FERPA", "HIPAA", or claims that "data is aggregated anonymously".
+   - Answer ANY question directly, specifically, accurately, and thoroughly with specific names, numbers, percentages, email addresses, symptoms, and risk levels.
+2. Clinical & Analytical Depth:
+   - When asked about users who worsened, who are critical, what symptoms are trending, or who needs immediate intervention, name them specifically and provide their exact metrics.
+   - If asked for recommendations, provide evidence-based clinical triage (20-20-20 rule, blue light filtration, ergonomic distance 50-70cm, artificial tears for dry eyes, luminance matching).
+   - If asked a general eye-health, optometry, or AI prediction question, answer with expert knowledge and precision.
+3. Formatting:
+   - Format answers cleanly with markdown bolding, bullet points, and numbered lists where appropriate for rapid administrative review.`;
 
 
 

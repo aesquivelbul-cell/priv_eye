@@ -54,6 +54,44 @@ const SUGGESTED_QUESTIONS = [
 
 
 
+function FormattedMessage({ content }: { content: string }) {
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-1.5 text-xs leading-relaxed">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        const isBullet = trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ');
+        const cleanLine = isBullet ? trimmed.replace(/^[•\-*]\s*/, '') : trimmed;
+
+        const segments = cleanLine.split(/(\*\*.*?\*\*)/g);
+        const parsedContent = segments.map((seg, sIdx) => {
+          if (seg.startsWith('**') && seg.endsWith('**')) {
+            return <strong key={sIdx} className="font-semibold text-foreground">{seg.slice(2, -2)}</strong>;
+          }
+          return seg;
+        });
+
+        if (isBullet) {
+          return (
+            <div key={idx} className="flex items-start gap-1.5 pl-1 my-0.5">
+              <span className="text-primary font-bold text-xs select-none mt-0.5">•</span>
+              <span className="flex-1">{parsedContent}</span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="mb-1 last:mb-0">
+            {parsedContent}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export function AdminAiChatBubble() {
 
   const pathname = usePathname();
@@ -577,21 +615,17 @@ export function AdminAiChatBubble() {
                 </div>
 
                 <div
-
-                  className={`max-w-[70%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
-
+                  className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
                     msg.role === 'assistant'
-
                       ? 'bg-muted text-foreground rounded-tl-sm'
-
                       : 'bg-primary text-primary-foreground rounded-tr-sm'
-
                   }`}
-
                 >
-
-                  {msg.content}
-
+                  {msg.role === 'assistant' ? (
+                    <FormattedMessage content={msg.content} />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
 
               </div>
