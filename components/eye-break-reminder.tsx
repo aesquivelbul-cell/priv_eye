@@ -137,8 +137,8 @@ export function EyeBreakReminder() {
         </div>
       )}
 
-      {/* Persistent Widget in Bottom Right corner */}
-      <div className="fixed bottom-28 right-6 z-40 bg-card border border-border shadow-lg rounded-xl p-3 flex items-center gap-3 text-xs print:hidden">
+      {/* Persistent Widget in Bottom Right corner - hidden per request */}
+      {/* <div className="fixed bottom-28 right-6 z-40 bg-card border border-border shadow-lg rounded-xl p-3 flex items-center gap-3 text-xs print:hidden">
         <button
           onClick={toggleReminder}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
@@ -180,7 +180,7 @@ export function EyeBreakReminder() {
             </button>
           </>
         )}
-      </div>
+      </div> */}
     </>
   )
 }

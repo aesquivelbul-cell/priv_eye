@@ -113,7 +113,7 @@ export async function GET() {
 
   // ── Map survey_responses rows first (399 imported research responses) ───────
   const surveyRows = (((surveysRes.data ?? []) as unknown as Record<string, unknown>[]).map(r => ({
-    'Source':                       'Survey Import',
+    'Source':                       'Live Submission',
     'Date':                         s(r.response_timestamp)?.split('T')[0] ?? '',
     'Email':                        s(r.email),
     'Age':                          s(r.eg_age),
